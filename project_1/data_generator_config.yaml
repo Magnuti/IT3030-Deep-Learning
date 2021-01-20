@@ -1,0 +1,23 @@
+# Beware of changing these parameters
+training_ratio: 0.7
+validation_ratio: 0.2
+testing_ratio: 0.1
+min_image_dimension: 10
+max_image_dimension: 50
+
+# Change these parameters as you like
+
+# Specifies the image dimensions of a square image (i.e., NxN)
+image_dimension: 25
+images_in_each_class: 100
+
+# Specifies the fraction of randomly-set pixels in each image.
+noise_ratio: 0.05
+
+# Whether the returned arrays should be 1D or 2D
+flatten: True
+
+# Whether the objects in the image should be centered or not
+center: False
+
+min_circle_radius: 2
