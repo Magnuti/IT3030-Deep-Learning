@@ -1,1 +1,1 @@
-# IT3030-Deep-Learning
+# IT3030 Deep Learning

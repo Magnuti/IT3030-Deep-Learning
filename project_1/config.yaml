@@ -1,0 +1,28 @@
+# [0-5]
+hidden_layers: 1
+
+# List of length hidden_layers + 2, with values between [1-1000]
+neurons_in_each_layer: [10, 25, 10]
+
+# Activation function for each layer (except the input layer)
+# Options [sigmoid, tanh, relu, linear, softmax]
+# Note that softmax is only applicable in the output layer
+# For example a network with 2 hidden layers: [sigmoid, sigmoid, relu]
+activation_function: [sigmoid, softmax]
+
+# [MSE, cross-entropy] where MSE is mean-squared error
+loss_function: cross-entropy
+
+# [L1, L2, null]
+global_weight_regularization_option: NULL
+
+# Typically a small fraction
+global_weight_regularization_rate: 0.001
+
+# Initial weight ranges for each (non-input) layer
+initial_weight_ranges: [100, 100]
+
+# Whether SoftMax should be included as the last layer
+softmax: True
+
+dataset_filename: dataset.txt
