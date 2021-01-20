@@ -23,6 +23,7 @@ class DataGenerator:
 
         # Create images
         circles = self.__create_circles(self.min_circle_radius)
+        circles = self.__add_noise(circles)
 
         # Save images
         self.output_dir = pathlib.Path("images")
@@ -48,8 +49,14 @@ class DataGenerator:
         self.center = config_data["center"]
         self.min_circle_radius = config_data["min_circle_radius"]
 
-    def __add_noise(self, array):
-        raise NotADirectoryError()
+    def __add_noise(self, images):
+        for i, image in enumerate(images):
+            for k in range(round(self.image_dimension * self.image_dimension * self.noise_ratio)):
+                x = randint(0, self.image_dimension - 1)
+                y = randint(0, self.image_dimension - 1)
+                images[i][y, x] = not image[y, x]
+
+        return images
 
     def __create_circles(self, min_radius):
         circles = []

@@ -12,7 +12,7 @@ image_dimension: 25
 images_in_each_class: 100
 
 # Specifies the fraction of randomly-set pixels in each image.
-noise_ratio: 0.05
+noise_ratio: 0.010
 
 # Whether the returned arrays should be 1D or 2D
 flatten: True
