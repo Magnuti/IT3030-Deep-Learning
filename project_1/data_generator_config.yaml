@@ -21,3 +21,4 @@ flatten: True
 center: False
 
 min_circle_radius: 2
+min_rectangle_size: 2

@@ -25,13 +25,20 @@ class DataGenerator:
         circles = self.__create_circles(self.min_circle_radius)
         circles = self.__add_noise(circles)
 
+        rectangles = self.__create_rectangles(self.min_rectangle_size)
+        rectangles = self.__add_noise(rectangles)
+
         # Save images
         self.output_dir = pathlib.Path("images")
         self.output_dir.mkdir(exist_ok=True)
 
-        for i, circle in enumerate(circles):
-            plt.imsave(self.output_dir.joinpath(
-                "circle_{}.png".format(i)), circle)
+        def save_figures(figures, figure_name):
+            for i, fig in enumerate(figures):
+                plt.imsave(self.output_dir.joinpath(
+                    "{}_{}.png".format(figure_name, i)), fig)
+
+        save_figures(circles, "circle")
+        save_figures(rectangles, "rectangle")
 
     def __parse_arguments(self):
         with open("data_generator_config.yaml", "r", encoding="utf-8") as f:
@@ -48,6 +55,7 @@ class DataGenerator:
         self.flatten = config_data["flatten"]
         self.center = config_data["center"]
         self.min_circle_radius = config_data["min_circle_radius"]
+        self.min_rectangle_size = config_data["min_rectangle_size"]
 
     def __add_noise(self, images):
         for i, image in enumerate(images):
@@ -89,8 +97,45 @@ class DataGenerator:
 
         return circles
 
-    def __create_rectangles(self):
-        raise NotImplementedError()
+    def __create_rectangles(self, min_rectangle_size):
+        rectangles = []
+        for i in range(self.images_in_each_class):
+            if(self.center):
+                center_x = (self.image_dimension // 2)
+                center_y = center_x
+                if(self.image_dimension % 2 == 0):
+                    max_height = self.image_dimension / 2 - 1
+                    max_width = max_height
+                else:
+                    max_height = self.image_dimension // 2
+                    max_width = max_height
+                height = randint(min_rectangle_size, max_height)
+                width = randint(min_rectangle_size, max_width)
+
+                start_y = center_y - height
+                end_y = center_y + height
+                start_x = center_x - width
+                end_x = center_x + width
+            else:
+                start_x = randint(0, self.image_dimension -
+                                  min_rectangle_size - 1)
+                start_y = randint(0, self.image_dimension -
+                                  min_rectangle_size - 1)
+                end_y = randint(start_y + min_rectangle_size,
+                                self.image_dimension - 1)
+                end_x = randint(start_x + min_rectangle_size,
+                                self.image_dimension - 1)
+
+            img = np.zeros((self.image_dimension, self.image_dimension))
+
+            img[start_y:end_y, start_x] = 1
+            img[start_y:end_y, end_x] = 1
+            img[start_y, start_x:end_x] = 1
+            img[end_y, start_x:end_x] = 1
+
+            rectangles.append(img)
+
+        return rectangles
 
     def __create_triangles(self):
         raise NotImplementedError()
