@@ -8,11 +8,17 @@ max_image_dimension: 50
 # Change these parameters as you like
 
 # Specifies the image dimensions of a square image (i.e., n x n)
-image_dimension: 25
+image_dimension: 10
 
 # Adjust the size ranges to restrict the size of the figures within the n x n image
-object_size_range_height: [0, 25] # TODO use this
-object_size_range_width: [0, 25]
+# It is best to keep the minimum range > 1 (expect for thickness)
+circle_radius_range: [3, 100]
+rectanlge_range_height: [3, 100]
+rectanlge_range_width: [3, 100]
+triangle_range: [2, 25]
+cross_range_height: [2, 25]
+cross_range_width: [2, 25]
+cross_thickness_range: [1, 3]
 
 images_in_each_class: 100
 
@@ -23,8 +29,4 @@ noise_ratio: 0.010
 flatten: True
 
 # Whether the objects in the image should be centered or not
-center: False
-
-# TODO maybe remove this as we have range_sizes now
-min_circle_radius: 2
-min_rectangle_size: 2
+center: false

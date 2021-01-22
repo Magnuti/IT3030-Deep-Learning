@@ -22,10 +22,11 @@ class DataGenerator:
             raise ValueError("Invalid image dimension")
 
         # Create images
-        circles = self.__create_circles(self.min_circle_radius)
+        circles = self.__create_circles(self.circle_radius_range)
         circles = self.__add_noise(circles)
 
-        rectangles = self.__create_rectangles(self.min_rectangle_size)
+        rectangles = self.__create_rectangles(
+            self.rectanlge_range_height, self.rectanlge_range_width)
         rectangles = self.__add_noise(rectangles)
 
         # Save images
@@ -50,12 +51,17 @@ class DataGenerator:
         self.min_image_dimension = config_data["min_image_dimension"]
         self.max_image_dimension = config_data["max_image_dimension"]
         self.image_dimension = config_data["image_dimension"]
+        self.circle_radius_range = config_data["circle_radius_range"]
+        self.rectanlge_range_height = config_data["rectanlge_range_height"]
+        self.rectanlge_range_width = config_data["rectanlge_range_width"]
+        self.triangle_range = config_data["triangle_range"]
+        self.cross_range_height = config_data["cross_range_height"]
+        self.cross_range_width = config_data["cross_range_width"]
+        self.cross_thickness_range = config_data["cross_thickness_range"]
         self.images_in_each_class = config_data["images_in_each_class"]
         self.noise_ratio = config_data["noise_ratio"]
         self.flatten = config_data["flatten"]
         self.center = config_data["center"]
-        self.min_circle_radius = config_data["min_circle_radius"]
-        self.min_rectangle_size = config_data["min_rectangle_size"]
 
     def __add_noise(self, images):
         for i, image in enumerate(images):
@@ -66,7 +72,7 @@ class DataGenerator:
 
         return images
 
-    def __create_circles(self, min_radius):
+    def __create_circles(self, circle_radius_range):
         circles = []
         for i in range(self.images_in_each_class):
             if(self.center):
@@ -76,15 +82,18 @@ class DataGenerator:
                     max_radius = self.image_dimension / 2 - 1
                 else:
                     max_radius = self.image_dimension // 2
+                min_radius = circle_radius_range[0]
+                max_radius = min(max_radius, circle_radius_range[1])
                 radius = randint(min_radius, max_radius)
             else:
                 center_x = randint(
-                    min_radius, self.image_dimension - min_radius - 1)
+                    circle_radius_range[0], self.image_dimension - circle_radius_range[0] - 1)
                 center_y = randint(
-                    min_radius, self.image_dimension - min_radius - 1)
+                    circle_radius_range[0], self.image_dimension - circle_radius_range[0] - 1)
                 max_radius = min(self.image_dimension - center_x - 1,
                                  center_x, self.image_dimension - center_y - 1, center_y)
-                radius = randint(min_radius, max_radius)
+                max_radius = min(max_radius, circle_radius_range[1])
+                radius = randint(circle_radius_range[0], max_radius)
 
             img = np.zeros((self.image_dimension, self.image_dimension))
 
@@ -97,34 +106,45 @@ class DataGenerator:
 
         return circles
 
-    def __create_rectangles(self, min_rectangle_size):
+    def __create_rectangles(self, rectanlge_range_height, rectanlge_range_width):
         rectangles = []
         for i in range(self.images_in_each_class):
             if(self.center):
                 center_x = (self.image_dimension // 2)
                 center_y = center_x
                 if(self.image_dimension % 2 == 0):
-                    max_height = self.image_dimension / 2 - 1
-                    max_width = max_height
+                    max_half_height = self.image_dimension / 2 - 1
+                    max_half_width = max_half_height
                 else:
-                    max_height = self.image_dimension // 2
-                    max_width = max_height
-                height = randint(min_rectangle_size, max_height)
-                width = randint(min_rectangle_size, max_width)
+                    max_half_height = self.image_dimension // 2
+                    max_half_width = max_half_height
+
+                max_half_height = min(
+                    max_half_height, rectanlge_range_height[1] // 2)
+                max_half_width = min(
+                    max_half_width, rectanlge_range_width[1] // 2)
+
+                height = randint(
+                    rectanlge_range_height[0] // 2, max_half_height)
+                width = randint(rectanlge_range_width[0] // 2, max_half_width)
 
                 start_y = center_y - height
                 end_y = center_y + height
                 start_x = center_x - width
                 end_x = center_x + width
             else:
-                start_x = randint(0, self.image_dimension -
-                                  min_rectangle_size - 1)
                 start_y = randint(0, self.image_dimension -
-                                  min_rectangle_size - 1)
-                end_y = randint(start_y + min_rectangle_size,
-                                self.image_dimension - 1)
-                end_x = randint(start_x + min_rectangle_size,
-                                self.image_dimension - 1)
+                                  rectanlge_range_height[0] - 1)
+                start_x = randint(0, self.image_dimension -
+                                  rectanlge_range_width[0] - 1)
+
+                max_y = min(self.image_dimension - 1,
+                            start_y + rectanlge_range_height[1])
+                max_x = min(self.image_dimension - 1,
+                            start_x + rectanlge_range_width[1])
+
+                end_y = randint(start_y + rectanlge_range_height[0], max_y)
+                end_x = randint(start_x + rectanlge_range_width[0], max_x)
 
             img = np.zeros((self.image_dimension, self.image_dimension))
 
