@@ -8,7 +8,7 @@ max_image_dimension: 50
 # Change these parameters as you like
 
 # Specifies the image dimensions of a square image (i.e., n x n)
-image_dimension: 10
+image_dimension: 25
 
 # Adjust the size ranges to restrict the size of the figures within the n x n image
 # It is best to keep the minimum range > 1 (expect for thickness)
@@ -16,8 +16,8 @@ circle_radius_range: [3, 100]
 rectanlge_range_height: [3, 100]
 rectanlge_range_width: [3, 100]
 triangle_range: [2, 25]
-cross_range_height: [2, 25]
-cross_range_width: [2, 25]
+
+cross_size_range: [3, 25] # Height and width is the same for the cross
 cross_thickness_range: [1, 3]
 
 images_in_each_class: 100

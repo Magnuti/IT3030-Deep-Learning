@@ -23,13 +23,18 @@ class DataGenerator:
 
         # Create images
         circles = self.__create_circles(self.circle_radius_range)
-        circles = self.__add_noise(circles)
 
         rectangles = self.__create_rectangles(
             self.rectanlge_range_height, self.rectanlge_range_width)
-        rectangles = self.__add_noise(rectangles)
 
-        # Save images
+        crosses = self.__create_crosses(
+            self.cross_size_range, self.cross_thickness_range)
+
+        # Add noise
+        circles = self.__add_noise(circles)
+        rectangles = self.__add_noise(rectangles)
+        crosses = self.__add_noise(crosses)
+
         self.output_dir = pathlib.Path("images")
         self.output_dir.mkdir(exist_ok=True)
 
@@ -38,8 +43,10 @@ class DataGenerator:
                 plt.imsave(self.output_dir.joinpath(
                     "{}_{}.png".format(figure_name, i)), fig)
 
+        # Save images
         save_figures(circles, "circle")
         save_figures(rectangles, "rectangle")
+        save_figures(crosses, "cross")
 
     def __parse_arguments(self):
         with open("data_generator_config.yaml", "r", encoding="utf-8") as f:
@@ -55,8 +62,7 @@ class DataGenerator:
         self.rectanlge_range_height = config_data["rectanlge_range_height"]
         self.rectanlge_range_width = config_data["rectanlge_range_width"]
         self.triangle_range = config_data["triangle_range"]
-        self.cross_range_height = config_data["cross_range_height"]
-        self.cross_range_width = config_data["cross_range_width"]
+        self.cross_size_range = config_data["cross_size_range"]
         self.cross_thickness_range = config_data["cross_thickness_range"]
         self.images_in_each_class = config_data["images_in_each_class"]
         self.noise_ratio = config_data["noise_ratio"]
@@ -160,8 +166,35 @@ class DataGenerator:
     def __create_triangles(self):
         raise NotImplementedError()
 
-    def __create_crosses(self):
-        raise NotImplementedError()
+    def __create_crosses(self, cross_size_range, cross_thickness_range):
+        crosses = []
+        for i in range(self.images_in_each_class):
+            size = randint(cross_size_range[0], min(
+                cross_size_range[1], self.image_dimension))
+
+            if(self.center):
+                center_y = self.image_dimension // 2
+                center_x = center_y
+            else:
+                center_y = randint(size // 2, self.image_dimension - size // 2)
+                center_x = randint(size // 2, self.image_dimension - size // 2)
+
+            img = np.zeros((self.image_dimension, self.image_dimension))
+
+            thickness = randint(
+                cross_thickness_range[0], cross_thickness_range[1])
+            size_1 = math.floor(size / 2)
+            size_2 = math.ceil(size / 2)
+            thickness_1 = math.floor(thickness / 2)
+            thickness_2 = math.ceil(thickness / 2)
+            img[center_y - size_1:center_y + size_2, center_x -
+                thickness_1: center_x + thickness_2] = 1
+            img[center_y - thickness_1:center_y + thickness_2,
+                center_x - size_1: center_x + size_2] = 1
+
+            crosses.append(img)
+
+        return crosses
 
 
 if __name__ == "__main__":
