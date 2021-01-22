@@ -7,8 +7,13 @@ max_image_dimension: 50
 
 # Change these parameters as you like
 
-# Specifies the image dimensions of a square image (i.e., NxN)
+# Specifies the image dimensions of a square image (i.e., n x n)
 image_dimension: 25
+
+# Adjust the size ranges to restrict the size of the figures within the n x n image
+object_size_range_height: [0, 25] # TODO use this
+object_size_range_width: [0, 25]
+
 images_in_each_class: 100
 
 # Specifies the fraction of randomly-set pixels in each image.
@@ -20,5 +25,6 @@ flatten: True
 # Whether the objects in the image should be centered or not
 center: False
 
+# TODO maybe remove this as we have range_sizes now
 min_circle_radius: 2
 min_rectangle_size: 2

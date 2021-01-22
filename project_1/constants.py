@@ -5,6 +5,7 @@ class ActivationFunction(Enum):
     SIGMOID = "sigmoid"
     TANH = "tanh"
     RELU = "relu"
+    LINEAR = "linear"
     SOFTMAX = "softmax"
 
 
