@@ -4,7 +4,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pathlib
 import math
-import yaml
+
+from data_generator_parser import DataGeneratorArguments
 
 
 class Classes(Enum):
@@ -15,28 +16,27 @@ class Classes(Enum):
 
 
 class DataGenerator:
-    def __init__(self):
-        self.__parse_arguments()
+    def __init__(self, args):
+        self.args = args
 
-        if(self.image_dimension < self.min_image_dimension or self.image_dimension > self.max_image_dimension):
-            raise ValueError("Invalid image dimension")
+        self.output_dir = pathlib.Path("images")
+        self.output_dir.mkdir(exist_ok=True)
 
-        # Create images
-        circles = self.__create_circles(self.circle_radius_range)
+    def create_figures(self):
+        # TODO add args.flatten option to return either 2D-array or 1D array
+
+        circles = self.__create_circles(self.args.circle_radius_range)
 
         rectangles = self.__create_rectangles(
-            self.rectanlge_range_height, self.rectanlge_range_width)
+            self.args.rectanlge_range_height, self.args.rectanlge_range_width)
 
         crosses = self.__create_crosses(
-            self.cross_size_range, self.cross_thickness_range)
+            self.args.cross_size_range, self.args.cross_thickness_range)
 
         # Add noise
         circles = self.__add_noise(circles)
         rectangles = self.__add_noise(rectangles)
         crosses = self.__add_noise(crosses)
-
-        self.output_dir = pathlib.Path("images")
-        self.output_dir.mkdir(exist_ok=True)
 
         def save_figures(figures, figure_name):
             for i, fig in enumerate(figures):
@@ -48,60 +48,40 @@ class DataGenerator:
         save_figures(rectangles, "rectangle")
         save_figures(crosses, "cross")
 
-    def __parse_arguments(self):
-        with open("data_generator_config.yaml", "r", encoding="utf-8") as f:
-            config_data = yaml.safe_load(f)
-
-        self.training_ratio = config_data["training_ratio"]
-        self.validation_ratio = config_data["validation_ratio"]
-        self.testing_ratio = config_data["testing_ratio"]
-        self.min_image_dimension = config_data["min_image_dimension"]
-        self.max_image_dimension = config_data["max_image_dimension"]
-        self.image_dimension = config_data["image_dimension"]
-        self.circle_radius_range = config_data["circle_radius_range"]
-        self.rectanlge_range_height = config_data["rectanlge_range_height"]
-        self.rectanlge_range_width = config_data["rectanlge_range_width"]
-        self.triangle_range = config_data["triangle_range"]
-        self.cross_size_range = config_data["cross_size_range"]
-        self.cross_thickness_range = config_data["cross_thickness_range"]
-        self.images_in_each_class = config_data["images_in_each_class"]
-        self.noise_ratio = config_data["noise_ratio"]
-        self.flatten = config_data["flatten"]
-        self.center = config_data["center"]
-
     def __add_noise(self, images):
         for i, image in enumerate(images):
-            for k in range(round(self.image_dimension * self.image_dimension * self.noise_ratio)):
-                x = randint(0, self.image_dimension - 1)
-                y = randint(0, self.image_dimension - 1)
+            for k in range(round(self.args.image_dimension * self.args.image_dimension * self.args.noise_ratio)):
+                x = randint(0, self.args.image_dimension - 1)
+                y = randint(0, self.args.image_dimension - 1)
                 images[i][y, x] = not image[y, x]
 
         return images
 
     def __create_circles(self, circle_radius_range):
         circles = []
-        for i in range(self.images_in_each_class):
-            if(self.center):
-                center_x = (self.image_dimension // 2)
+        for i in range(self.args.images_in_each_class):
+            if(self.args.center):
+                center_x = (self.args.image_dimension // 2)
                 center_y = center_x
-                if(self.image_dimension % 2 == 0):
-                    max_radius = self.image_dimension / 2 - 1
+                if(self.args.image_dimension % 2 == 0):
+                    max_radius = self.args.image_dimension / 2 - 1
                 else:
-                    max_radius = self.image_dimension // 2
+                    max_radius = self.args.image_dimension // 2
                 min_radius = circle_radius_range[0]
                 max_radius = min(max_radius, circle_radius_range[1])
                 radius = randint(min_radius, max_radius)
             else:
                 center_x = randint(
-                    circle_radius_range[0], self.image_dimension - circle_radius_range[0] - 1)
+                    circle_radius_range[0], self.args.image_dimension - circle_radius_range[0] - 1)
                 center_y = randint(
-                    circle_radius_range[0], self.image_dimension - circle_radius_range[0] - 1)
-                max_radius = min(self.image_dimension - center_x - 1,
-                                 center_x, self.image_dimension - center_y - 1, center_y)
+                    circle_radius_range[0], self.args.image_dimension - circle_radius_range[0] - 1)
+                max_radius = min(self.args.image_dimension - center_x - 1,
+                                 center_x, self.args.image_dimension - center_y - 1, center_y)
                 max_radius = min(max_radius, circle_radius_range[1])
                 radius = randint(circle_radius_range[0], max_radius)
 
-            img = np.zeros((self.image_dimension, self.image_dimension))
+            img = np.zeros((self.args.image_dimension,
+                            self.args.image_dimension))
 
             for degree in range(0, 360, 5):
                 x = round(radius * math.cos(math.radians(degree)))
@@ -114,15 +94,15 @@ class DataGenerator:
 
     def __create_rectangles(self, rectanlge_range_height, rectanlge_range_width):
         rectangles = []
-        for i in range(self.images_in_each_class):
-            if(self.center):
-                center_x = (self.image_dimension // 2)
+        for i in range(self.args.images_in_each_class):
+            if(self.args.center):
+                center_x = (self.args.image_dimension // 2)
                 center_y = center_x
-                if(self.image_dimension % 2 == 0):
-                    max_half_height = self.image_dimension / 2 - 1
+                if(self.args.image_dimension % 2 == 0):
+                    max_half_height = self.args.image_dimension / 2 - 1
                     max_half_width = max_half_height
                 else:
-                    max_half_height = self.image_dimension // 2
+                    max_half_height = self.args.image_dimension // 2
                     max_half_width = max_half_height
 
                 max_half_height = min(
@@ -139,20 +119,21 @@ class DataGenerator:
                 start_x = center_x - width
                 end_x = center_x + width
             else:
-                start_y = randint(0, self.image_dimension -
+                start_y = randint(0, self.args.image_dimension -
                                   rectanlge_range_height[0] - 1)
-                start_x = randint(0, self.image_dimension -
+                start_x = randint(0, self.args.image_dimension -
                                   rectanlge_range_width[0] - 1)
 
-                max_y = min(self.image_dimension - 1,
+                max_y = min(self.args.image_dimension - 1,
                             start_y + rectanlge_range_height[1])
-                max_x = min(self.image_dimension - 1,
+                max_x = min(self.args.image_dimension - 1,
                             start_x + rectanlge_range_width[1])
 
                 end_y = randint(start_y + rectanlge_range_height[0], max_y)
                 end_x = randint(start_x + rectanlge_range_width[0], max_x)
 
-            img = np.zeros((self.image_dimension, self.image_dimension))
+            img = np.zeros((self.args.image_dimension,
+                            self.args.image_dimension))
 
             img[start_y:end_y, start_x] = 1
             img[start_y:end_y, end_x] = 1
@@ -168,18 +149,21 @@ class DataGenerator:
 
     def __create_crosses(self, cross_size_range, cross_thickness_range):
         crosses = []
-        for i in range(self.images_in_each_class):
+        for i in range(self.args.images_in_each_class):
             size = randint(cross_size_range[0], min(
-                cross_size_range[1], self.image_dimension))
+                cross_size_range[1], self.args.image_dimension))
 
-            if(self.center):
-                center_y = self.image_dimension // 2
+            if(self.args.center):
+                center_y = self.args.image_dimension // 2
                 center_x = center_y
             else:
-                center_y = randint(size // 2, self.image_dimension - size // 2)
-                center_x = randint(size // 2, self.image_dimension - size // 2)
+                center_y = randint(
+                    size // 2, self.args.image_dimension - size // 2)
+                center_x = randint(
+                    size // 2, self.args.image_dimension - size // 2)
 
-            img = np.zeros((self.image_dimension, self.image_dimension))
+            img = np.zeros((self.args.image_dimension,
+                            self.args.image_dimension))
 
             thickness = randint(
                 cross_thickness_range[0], cross_thickness_range[1])
@@ -198,4 +182,7 @@ class DataGenerator:
 
 
 if __name__ == "__main__":
-    data_generator = DataGenerator()
+    args = DataGeneratorArguments()
+    args.parse_arguments()
+    data_generator = DataGenerator(args)
+    data_generator.create_figures()

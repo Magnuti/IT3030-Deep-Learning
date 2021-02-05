@@ -2,6 +2,7 @@
 verbose: True
 
 learning_rate: 0.01
+batch_size: 3
 
 # List of length 2-12, with values between [1-1000]
 # This means that we can have 0-10 hidden layers

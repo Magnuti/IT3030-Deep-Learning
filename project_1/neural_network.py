@@ -59,10 +59,10 @@ def linear_derivative(inputs: np.ndarray) -> np.ndarray:
 def softmax(inputs: np.ndarray) -> np.ndarray:
     """
     Args:
-        inputs: np.array with floats
+        inputs: np.array of shape(num_classes, batch_size)
 
     Returns:
-        np.array with floats that sum to 1 of the same shape as inputs
+        np.array that sum to 1 of the same shape as inputs
     """
 
     # We want to avoid computing e^x when x is very large, as this scales exponentially
@@ -70,14 +70,12 @@ def softmax(inputs: np.ndarray) -> np.ndarray:
     # achieve the same result as discussed here
     # https://jamesmccaffrey.wordpress.com/2016/03/04/the-max-trick-when-computing-softmax/
     # and here https://stackoverflow.com/questions/43401593/softmax-of-a-large-number-errors-out
-    inputs -= max(inputs)
+    # We do this by subtracting the max values for each batch.
+    inputs -= np.amax(inputs, axis=0)
 
-    denominator = sum(map(lambda x: np.exp(x), inputs))
-    outputs = np.empty(inputs.shape)
-    for i, x in enumerate(inputs):
-        outputs[i] = np.exp(x) / denominator
+    inputs = np.exp(inputs)
 
-    return outputs
+    return inputs / inputs.sum(axis=0)
 
 
 def softmax_derivative(inputs: np.ndarray) -> np.ndarray:
@@ -85,6 +83,54 @@ def softmax_derivative(inputs: np.ndarray) -> np.ndarray:
 
 
 def cross_entropy_loss(targets: np.ndarray, outputs: np.ndarray) -> float:
+    """
+    Args:
+        targets: labels/targets of each image of shape: (batch size, num_classes)
+        outputs: outputs of model of shape: (batch size, num_classes)
+    Returns:
+        Cross entropy error (float)
+    """
+    assert targets.shape == outputs.shape,\
+        f"Targets shape: {targets.shape}, outputs: {outputs.shape}"
+
+    loss = - np.sum(targets * np.log(outputs), axis=1)
+    return np.average(loss)
+
+
+def cross_entropy_loss_derivative(targets: np.ndarray, outputs: np.ndarray):
+    """
+    Args:
+        targets: labels/targets of each image of shape: (batch size, num_classes)
+        outputs: outputs of model of shape: (batch size, num_classes)
+    Returns:
+        Cross entropy error (float)
+    """
+
+    # TODO add support for batches
+    return np.where(predictions != 0, -targets/predictions, 0.0)
+
+# def binary_cross_entropy_loss(targets: np.ndarray, outputs: np.ndarray) -> float:
+#     """
+#     Args:
+#         targets: labels/targets of each image of shape: [batch size, 1]
+#         outputs: outputs of model of shape: [batch size, 1]
+#     Returns:
+#         Cross entropy error (float)
+#     """
+#     assert targets.shape == outputs.shape,\
+#         f"Targets shape: {targets.shape}, outputs: {outputs.shape}"
+
+#     batch_size = targets.shape[0]
+#     loss = np.zeros(batch_size)
+#     for i in range(batch_size):
+#         y = targets[i, 0]
+#         y_hat = outputs[i, 0]
+#         loss[i] = -(y * np.log(y_hat) + (1 - y) * np.log(1 - y_hat))
+
+#     return np.average(loss)
+
+
+def binary_cross_entropy_loss(targets: np.ndarray, outputs: np.ndarray) -> float:
     """
     Args:
         targets: labels/targets of each image of shape: (batch size)
@@ -95,19 +141,19 @@ def cross_entropy_loss(targets: np.ndarray, outputs: np.ndarray) -> float:
     assert targets.shape == outputs.shape, "Targets shape: {}, outputs: {}".format(
         targets.shape, outputs.shape)
 
-    batch_size = targets.shape
-    loss = np.zeros(batch_size)
-    for i in range(batch_size):
-        target = targets[i]
-        output = outputs[i]
-        loss[i] = -(target * np.log(output) +
-                    (1 - target) * np.log(1 - output))
-
+    loss = - (targets * np.log(outputs)) + (1 - targets) * np.log(1 - outputs)
     return np.average(loss)
 
+    # batch_size = targets.shape
+    # loss = np.zeros(batch_size)
 
-def cross_entropy_loss_derivative():
-    raise NotImplementedError()
+    # for i in range(batch_size):
+    #     target = targets[i]
+    #     output = outputs[i]
+    #     loss[i] = -(target * np.log(output) +
+    #                 (1 - target) * np.log(1 - output))
+
+    # return np.average(loss)
 
 
 def MSE(targets: np.ndarray, outputs: np.ndarray) -> float:
@@ -139,12 +185,20 @@ def MSE_derivative():
 class Layer:
     def __init__(self, neuron_count, neurons_in_previous_layer, activation_function):
         self.neurons = neuron_count
-        self.weights = np.ones((neurons_in_previous_layer, neuron_count))
-        self.bias = np.ones(neuron_count)  # One bias per neuron
+        # TODO set weights to a low value around the normal distribution
+        self.weights = np.zeros((neurons_in_previous_layer, neuron_count))
+        # One bias per neuron, column vector
+        self.bias = np.ones((neuron_count, 1))  # TODO "often init as zero"
         self.activation_function = activation_function
 
     def forward_pass(self, inputs):
-        a = np.transpose(self.weights).dot(inputs) + self.bias
+        """
+        Args:
+            inputs: np.ndarray of shape (self.neurons_in_previous_layer, batch_size)
+        Returns:
+            np.ndarray of shape (self.neuron_count, batch_size)
+        """
+        a = np.matmul(self.weights.T, inputs) + self.bias
         return run_activation_function(self.activation_function, a)
 
     def backward_pass(self):
@@ -152,9 +206,12 @@ class Layer:
 
 
 class NeuralNetwork:
-    def __init__(self, neurons_in_each_layer, activation_functions, loss_function, global_weight_regularization_option, global_weight_regularization_rate, initial_weight_ranges, softmax, verbose):
+    def __init__(self, learning_rate, batch_size, neurons_in_each_layer, activation_functions,
+                 loss_function, global_weight_regularization_option,
+                 global_weight_regularization_rate, initial_weight_ranges, softmax, verbose):
+        self.learning_rate = learning_rate
+        self.batch_size = batch_size
         self.neurons_in_each_layer = neurons_in_each_layer
-
         # Add None as af to the input layer
         activation_functions.insert(0, None)
         self.activation_functions = activation_functions
@@ -183,6 +240,7 @@ class NeuralNetwork:
         return layers
 
     def train(self, epochs, init_inputs):
+        print("Input:", init_inputs.shape)
         # TODO add epochs and batches
         outputs = init_inputs
         for i, layer in enumerate(self.layers):
