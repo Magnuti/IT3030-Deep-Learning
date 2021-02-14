@@ -251,24 +251,44 @@ def one_hot_encode(X):
     return output
 
 
-class Layer:
-    def __init__(self, neuron_count, neurons_in_previous_layer, activation_function, learning_rate, verbose=False, name=""):
-        def glorot_normal():
-            standard_deviation = np.sqrt(
-                2 / (neurons_in_previous_layer + neuron_count))
-            return np.random.normal(0.0, standard_deviation,
-                                    size=(neurons_in_previous_layer, neuron_count))
+def glorot_normal(neurons_in_previous_layer, neurons_in_this_layer):
+    standard_deviation = np.sqrt(
+        2 / (neurons_in_previous_layer + neurons_in_this_layer))
+    return np.random.normal(0.0, standard_deviation,
+                            size=(neurons_in_previous_layer, neurons_in_this_layer))
 
-        def glorot_uniform():
-            standard_deviation = np.sqrt(
-                6.0 / (neurons_in_previous_layer + neuron_count))
-            return np.random.uniform(-standard_deviation, standard_deviation,
-                                     size=(neurons_in_previous_layer, neuron_count))
+
+def glorot_uniform(neurons_in_previous_layer, neurons_in_this_layer):
+    standard_deviation = np.sqrt(
+        6.0 / (neurons_in_previous_layer + neurons_in_this_layer))
+    return np.random.uniform(-standard_deviation, standard_deviation,
+                             size=(neurons_in_previous_layer, neurons_in_this_layer))
+
+
+def init_weights_with_range(low, high, neurons_in_previous_layer, neurons_in_this_layer):
+    return np.random.uniform(low, high, size=(neurons_in_previous_layer, neurons_in_this_layer))
+
+
+class Layer:
+
+    def __init__(self, neuron_count, neurons_in_previous_layer, activation_function, learning_rate,
+                 initial_weight_ranges, initial_bias_ranges, verbose=False, name=""):
 
         self.neuron_count = neuron_count
-        self.weights = glorot_normal()  # TODO check actual regulartization option in config
+
+        if initial_weight_ranges == "glorot_normal":
+            self.weights = glorot_normal(
+                neurons_in_previous_layer, neuron_count)
+        elif initial_weight_ranges == "glorot_uniform":
+            self.weights = glorot_uniform(
+                neurons_in_previous_layer, neuron_count)
+        else:
+            self.weights = init_weights_with_range(
+                initial_weight_ranges[0], initial_weight_ranges[1], neurons_in_previous_layer, neuron_count)
+
         # One bias per neuron, column vector
-        self.bias = np.zeros((neuron_count, 1))
+        self.bias = np.random.uniform(
+            initial_bias_ranges[0], initial_bias_ranges[1], size=(neuron_count, 1))
         self.activation_function = activation_function
         self.learning_rate = learning_rate
         self.verbose = verbose
@@ -397,7 +417,8 @@ class NeuralNetwork:
                 continue  # Skip input layer
 
             layers.append(Layer(neuron_count, neurons_in_previous_layer,
-                                self.activation_functions[i], self.learning_rate, verbose=self.verbose, name="Dense {}".format(i)))
+                                self.activation_functions[i], self.learning_rate, self.initial_weight_ranges,
+                                self.initial_bias_ranges, verbose=self.verbose, name="Dense {}".format(i)))
             neurons_in_previous_layer = neuron_count
 
         return layers
@@ -597,8 +618,8 @@ if __name__ == "__main__":
     loss_function = LossFunction.MSE
     global_weight_regularization_option = None
     global_weight_regularization_rate = None
-    initial_weight_ranges = None
-    initial_bias_ranges = None
+    initial_weight_ranges = "glorot_normal"
+    initial_bias_ranges = [0, 0]
     verbose = False
     nn = NeuralNetwork(learning_rate, neurons_in_each_layer, activation_functions, loss_function,
                        global_weight_regularization_option, global_weight_regularization_rate, initial_weight_ranges,

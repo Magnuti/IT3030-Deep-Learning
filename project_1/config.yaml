@@ -1,21 +1,21 @@
 # Whether or not to print network information, outputs, loss etc.
-verbose: True
+verbose: False
 
 learning_rate: 0.01
 batch_size: 3
 
-# List of length 2-12, with values between [1-1000]
+# List of length 2-12, with values in the interval [1-1000]
 # This means that we can have 0-10 hidden layers
-neurons_in_each_layer: [625, 1000, 500, 800, 400, 4]
+neurons_in_each_layer: [625, 1000, 4]
 
 # Activation function for each layer (except the input layer)
 # Options [sigmoid, tanh, relu, linear, softmax]
 # Note that softmax is only applicable in the output layer
-# For example a network with 2 hidden layers: [sigmoid, sigmoid, relu]
-activation_functions: [linear, tanh, relu, sigmoid, softmax]
+# For example a network with 2 hidden layers: [sigmoid, relu, softmax]
+activation_functions: [sigmoid, sigmoid]
 
-# [MSE, cross-entropy] where MSE is mean-squared error
-loss_function: cross-entropy
+# [MSE, cross_entropy] where MSE is mean-squared error
+loss_function: MSE
 
 # TODO should batch_size be here?
 
@@ -25,9 +25,13 @@ global_weight_regularization_option: NULL
 # Typically a small fraction
 global_weight_regularization_rate: 0.001
 
-# TODO look up glorot for weight_ranges
-# Initial weight ranges for each (non-input) layer
-initial_weight_ranges: [100, 100]
+# Initial weight ranges for each (non-input) layer,
+# options: [glorot_normal, glorot_uniform, [low, high]]
+# where [low, high] result in low <= weight <= high ranges.
+initial_weight_ranges: glorot_normal
+
+# Initial bias ranges on the form [low, high] such that low <= bias <= high
+initial_bias_ranges: [0, 0]
 
 # Whether SoftMax should be included as the last layer
 softmax: True

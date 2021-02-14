@@ -34,6 +34,7 @@ class Arguments:
 
         self.global_weight_regularization_rate = config_data["global_weight_regularization_rate"]
         self.initial_weight_ranges = config_data["initial_weight_ranges"]
+        self.initial_bias_ranges = config_data["initial_bias_ranges"]
         self.softmax = config_data["softmax"]
         self.dataset_filename = config_data["dataset_filename"]
 

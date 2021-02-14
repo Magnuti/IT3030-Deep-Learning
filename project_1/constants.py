@@ -11,7 +11,7 @@ class ActivationFunction(Enum):
 
 class LossFunction(Enum):
     MSE = "MSE"
-    CROSS_ENTROPY = "cross-entropy"
+    CROSS_ENTROPY = "cross_entropy"
 
 
 class GlobalWeightRegularizationOption(Enum):
