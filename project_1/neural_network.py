@@ -285,8 +285,10 @@ class Layer:
         Returns:
             np.ndarray of shape (self.neuron_count, batch_size)
         """
-        # TODO dont use weights if softmax!!! !!!
-        weighted_inputs = np.matmul(self.weights.T, X) + self.bias
+        if self.activation_function == ActivationFunction.SOFTMAX:
+            weighted_inputs = X
+        else:
+            weighted_inputs = np.matmul(self.weights.T, X) + self.bias
         self.prev_layer_outputs = X
 
         # self.activations has shape (neurons, batch_size)
@@ -315,30 +317,31 @@ class Layer:
         """
         # print(R.shape)
         # TODO transpose all R to end this mess
-        if self.activation_function is not None:
-            if self.activation_function == ActivationFunction.SOFTMAX:
-                activations = self.activations.T  # (batch_size, neurons)
+        if self.activation_function == ActivationFunction.SOFTMAX:
+            activations = self.activations.T  # (batch_size, neurons)
 
-                batch_size = activations.shape[0]
-                for b in range(batch_size):
-                    # Builds the J-Soft matrix for each case in the batch
-                    j_soft = np.empty((self.neuron_count, self.neuron_count))
-                    for i in range(self.neuron_count):
-                        for j in range(self.neuron_count):
-                            if i == j:
-                                j_soft[i, j] = activations[b, i] - \
-                                    activations[b, i] ** 2
-                            else:
-                                j_soft[i, j] = - activations[b, i] * \
-                                    activations[b, j]
+            batch_size = activations.shape[0]
+            for b in range(batch_size):
+                # Builds the J-Soft matrix for each case in the batch
+                j_soft = np.empty((self.neuron_count, self.neuron_count))
+                for i in range(self.neuron_count):
+                    for j in range(self.neuron_count):
+                        if i == j:
+                            j_soft[i, j] = activations[b, i] - \
+                                activations[b, i] ** 2
+                        else:
+                            j_soft[i, j] = - activations[b, i] * \
+                                activations[b, j]
 
-                    # Multiply iteratively because j_soft changes for each case in the batch
-                    R[b] = np.matmul(R[b], j_soft)
-            else:
-                activation_gradient = derivative_activation_function(
-                    self.activation_function, self.activations).T
-                # print("AG", activation_gradient.shape)
-                R = activation_gradient * R  # ? * here??
+                # Multiply iteratively because j_soft changes for each case in the batch
+                R[b] = np.matmul(R[b], j_soft)
+
+            return R
+
+        activation_gradient = derivative_activation_function(
+            self.activation_function, self.activations).T
+        # print("AG", activation_gradient.shape)
+        R = activation_gradient * R  # ? * here??
 
         # Gradients for weights and bias
         batch_size = R.shape[0]
@@ -361,14 +364,22 @@ class Layer:
 
 
 class NeuralNetwork:
-    def __init__(self, learning_rate, neurons_in_each_layer, activation_functions,
+    def __init__(self, learning_rate, neurons_in_each_layer, activation_functions, softmax,
                  loss_function, global_weight_regularization_option, global_weight_regularization_rate,
                  initial_weight_ranges, initial_bias_ranges, verbose):
         self.learning_rate = learning_rate
+
+        if softmax:
+            # Appends a SoftMax layer as the last layer with as many neurons as the last layer before SoftMax
+            neurons_in_each_layer.append(neurons_in_each_layer[-1])
+
         self.neurons_in_each_layer = neurons_in_each_layer
-        # Add None as af to the input layer
+        # Add None as activation function to the input layer and SoftMax to last layer
         activation_functions.insert(0, None)
+        if softmax:
+            activation_functions.append(ActivationFunction.SOFTMAX)
         self.activation_functions = activation_functions
+        self.softmax = softmax
         self.loss_function = loss_function
         self.global_weight_regularization_option = global_weight_regularization_option
         self.global_weight_regularization_rate = global_weight_regularization_rate
@@ -582,13 +593,14 @@ if __name__ == "__main__":
     neurons_in_each_layer = [2, 3, 3, 2]
     activation_functions = [
         ActivationFunction.RELU, ActivationFunction.RELU, ActivationFunction.SOFTMAX]
+    softmax = True
     loss_function = LossFunction.MSE
     global_weight_regularization_option = None
     global_weight_regularization_rate = None
     initial_weight_ranges = "glorot_normal"
     initial_bias_ranges = [0, 0]
     verbose = False
-    nn = NeuralNetwork(learning_rate, neurons_in_each_layer, activation_functions, loss_function,
+    nn = NeuralNetwork(learning_rate, neurons_in_each_layer, activation_functions, softmax, loss_function,
                        global_weight_regularization_option, global_weight_regularization_rate, initial_weight_ranges,
                        initial_bias_ranges, verbose)
 
@@ -658,8 +670,8 @@ if __name__ == "__main__":
     train_loss_history, train_accuracy_history, val_loss_history, val_accuracy_history = nn.train(
         epochs, batch_size, X_train, Y_train, X_val, Y_val)
 
-    plot_loss_and_accuracy(train_loss_history, train_accuracy_history,
-                           val_loss_history, val_accuracy_history)
+    plot_loss_and_accuracy(
+        train_loss_history, train_accuracy_history, val_loss_history, val_accuracy_history)
 
     input_check = np.array([[0.0, 0.0], [1.0, 1.0], [1.0, 0.0], [0.0, 1.0]])
     prediction = nn.predict(input_check)

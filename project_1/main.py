@@ -17,7 +17,7 @@ if __name__ == "__main__":
     data, targets = data_generator.get_images()
     data, targets = shuffle_data_and_targets(data, targets)
 
-    nn = NeuralNetwork(nn_args.learning_rate, nn_args.neurons_in_each_layer, nn_args.activation_functions, nn_args.loss_function,
+    nn = NeuralNetwork(nn_args.learning_rate, nn_args.neurons_in_each_layer, nn_args.activation_functions, nn_args.softmax, nn_args.loss_function,
                        nn_args.global_weight_regularization_option, nn_args.global_weight_regularization_rate, nn_args.initial_weight_ranges,
                        nn_args.initial_bias_ranges, nn_args.verbose)
 

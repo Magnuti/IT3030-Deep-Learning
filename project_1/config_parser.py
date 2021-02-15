@@ -17,13 +17,10 @@ class Arguments:
         activation_functions = config_data["activation_functions"]
         self.activation_functions = []
         for i, af in enumerate(activation_functions):
-            af = ActivationFunction(af)
-            if(i < len(activation_functions) - 1 and af == ActivationFunction.SOFTMAX):
-                raise ValueError("SoftMax can only be used at the last layer.")
-            self.activation_functions.append(af)
+            self.activation_functions.append(ActivationFunction(af))
 
-        loss_function = config_data["loss_function"]
-        self.loss_function = LossFunction(loss_function)
+        self.softmax = config_data["softmax"]
+        self.loss_function = LossFunction(config_data["loss_function"])
 
         global_weight_regularization_option = config_data["global_weight_regularization_option"]
 

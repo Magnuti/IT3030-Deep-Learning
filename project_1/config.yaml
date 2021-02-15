@@ -3,17 +3,18 @@ verbose: False
 
 learning_rate: 0.01
 batch_size: 64
-epochs: 250
+epochs: 10
 
 # List of length 2-12, with values in the interval [1-1000]
 # This means that we can have 0-10 hidden layers
 neurons_in_each_layer: [625, 256, 256, 3]
 
 # Activation function for each layer (except the input layer)
-# Options [sigmoid, tanh, relu, linear, softmax]
-# Note that softmax is only applicable in the output layer
-# For example a network with 2 hidden layers: [sigmoid, relu, softmax]
-activation_functions: [relu, relu, softmax]
+# Options [sigmoid, tanh, relu, linear]
+# For example a network with 2 hidden layers: [sigmoid, relu, relu]
+activation_functions: [relu, relu, linear]
+
+softmax: True # Whether or not we should include a SoftMax layer at the end
 
 # [MSE, cross_entropy] where MSE is mean-squared error
 loss_function: cross_entropy
