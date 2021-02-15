@@ -285,9 +285,11 @@ class Layer:
         Returns:
             np.ndarray of shape (self.neuron_count, batch_size)
         """
+        # TODO dont use weights if softmax!!! !!!
         weighted_inputs = np.matmul(self.weights.T, X) + self.bias
         self.prev_layer_outputs = X
-        # self.weighted_inputs = weighted_inputs
+
+        # self.activations has shape (neurons, batch_size)
         self.activations = run_activation_function(
             self.activation_function, weighted_inputs)
 
@@ -301,46 +303,37 @@ class Layer:
         return self.activations
 
     def backward_pass(self, R):
+        """
+        Performs backward pass over one layer.
+
+        Args
+            R: np.ndarray of shape (batch_size, neurons_in_this_layer)
+
+        Returns
+            np.ndarray of shape (batch_size, neurons_in_previous_layer), where neurons_in_previous_layer is
+            the neuron count of the layer to the left (i.e., the input to this layer).
+        """
+        # print(R.shape)
         # TODO transpose all R to end this mess
-        # print("R", R.shape)
         if self.activation_function is not None:
             if self.activation_function == ActivationFunction.SOFTMAX:
-                # # Hardcoded J^L_S for now with SoftMax +  MSE
-                # # Row vector of shape (batch_size, number_of_outputs)
+                activations = self.activations.T  # (batch_size, neurons)
 
-                # # j_soft == JSZ
-                # # Builds the J^Soft matrix
-                # j_soft = np.empty((self.neuron_count, self.neuron_count))
-                # for i in range(self.neuron_count):
-                #     for j in range(self.neuron_count):
-                #         if i == j:
-                #             j_soft[i, j] = self.activations[i] - \
-                #                 self.activations[i] ** 2
-                #         else:
-                #             j_soft[i, j] = - self.activations[i] * \
-                #                 self.activations[j]
+                batch_size = activations.shape[0]
+                for b in range(batch_size):
+                    # Builds the J-Soft matrix for each case in the batch
+                    j_soft = np.empty((self.neuron_count, self.neuron_count))
+                    for i in range(self.neuron_count):
+                        for j in range(self.neuron_count):
+                            if i == j:
+                                j_soft[i, j] = activations[b, i] - \
+                                    activations[b, i] ** 2
+                            else:
+                                j_soft[i, j] = - activations[b, i] * \
+                                    activations[b, j]
 
-                # # Transpose R because we need it as a column vector
-                # R = np.dot(R.T, j_soft)
-                # TODO fix the ripoff, note here we transpose both R and activations
-                # self.activations has shape (batch_size, activations)
-
-                activations_T = self.activations.T
-                temp_gradient_T = R.T
-                act_shape = activations_T.shape
-                act = activations_T.reshape(act_shape[0], 1, act_shape[-1])
-
-                jacobian = - (act.transpose((0, 2, 1)) @ act) * \
-                    (1 - np.identity(activations_T.shape[-1]))
-                jacobian += np.identity(act_shape[-1]) * \
-                    (act * (1 - act)).transpose((0, 2, 1))
-
-                gradient = (
-                    jacobian @ temp_gradient_T.reshape(act_shape[0], act_shape[-1], 1))
-                gradient = gradient.reshape((act_shape[0], act_shape[-1]))
-
-                R = gradient
-                # print("R", R)
+                    # Multiply iteratively because j_soft changes for each case in the batch
+                    R[b] = np.matmul(R[b], j_soft)
             else:
                 activation_gradient = derivative_activation_function(
                     self.activation_function, self.activations).T
@@ -439,10 +432,6 @@ class NeuralNetwork:
             y = Y[batch_indices]
             yield (x, y)
 
-    def get_new_batch(self, batch_size):
-        # TODO get a random sample of the training data, see CV assignment 1
-        raise NotImplementedError
-
     def forward_pass(self, X: np.ndarray):
         """
         Performs forward pass over a mini-batch.
@@ -474,13 +463,9 @@ class NeuralNetwork:
         """
 
         R = derivative_loss_function(self.loss_function, outputs, targets).T
-
-        # print("Original R:\n", R)
         for i, layer in reversed(list(enumerate(self.layers))):
-            # print("Layer", i, layer)
             if layer is not None:
                 R = layer.backward_pass(R)
-                # print(R)
 
     def train(self, epochs, batch_size, X_train, Y_train, X_val, Y_val, shuffle=True):
         """
@@ -674,7 +659,7 @@ if __name__ == "__main__":
         epochs, batch_size, X_train, Y_train, X_val, Y_val)
 
     plot_loss_and_accuracy(train_loss_history, train_accuracy_history,
-               val_loss_history, val_accuracy_history)
+                           val_loss_history, val_accuracy_history)
 
     input_check = np.array([[0.0, 0.0], [1.0, 1.0], [1.0, 0.0], [0.0, 1.0]])
     prediction = nn.predict(input_check)
