@@ -1,67 +1,8 @@
 import numpy as np
 
 from constants import ActivationFunction, LossFunction
+from layer import Layer
 from utils import split_dataset, one_hot_encode, plot_loss_and_accuracy
-
-# TODO make these elif functions into a class maybe
-
-
-def sigmoid(x: np.ndarray) -> np.ndarray:
-    return 1 / (1 + np.exp(-x))
-
-
-def sigmoid_derivative(x: np.ndarray) -> np.ndarray:
-    return sigmoid(x) * (1 - sigmoid(x))
-
-
-def tanh(x: np.ndarray) -> np.ndarray:
-    return np.tanh(x)
-
-
-def tanh_derivative(x: np.ndarray) -> np.ndarray:
-    return 1 - np.power(np.tanh(x), 2)
-
-
-def relu(x: np.ndarray) -> np.ndarray:
-    return np.maximum(0, x)
-
-
-def relu_derivative(x: np.ndarray) -> np.ndarray:
-    x[x > 0] = 1
-    x[x <= 0] = 0
-    return x
-
-
-def linear(x: np.ndarray) -> np.ndarray:
-    return x
-
-
-def linear_derivative(x: np.ndarray) -> np.ndarray:
-    return np.ones(x.shape)
-
-
-def softmax_fun(x: np.ndarray) -> np.ndarray:
-    """
-    Args:
-        x: np.array of shape(num_classes, batch_size)
-
-    Returns:
-        np.array that sum to 1 of the same shape as x
-    """
-
-    # We want to avoid computing e^x when x is very large, as this scales exponentially
-    # Therefore, we can use a trick to "lower" all values of x, but still be able to
-    # achieve the same result as discussed here
-    # https://jamesmccaffrey.wordpress.com/2016/03/04/the-max-trick-when-computing-softmax/
-    # and here https://stackoverflow.com/questions/43401593/softmax-of-a-large-number-errors-out
-    # We do this by subtracting the max values for each batch.
-    x -= np.amax(x, axis=0)
-    x = np.exp(x)
-    return x / x.sum(axis=0)
-
-
-def softmax_derivative(inputs: np.ndarray) -> np.ndarray:
-    raise NotImplementedError()
 
 
 def cross_entropy_loss(outputs: np.ndarray, targets: np.ndarray) -> float:
@@ -90,52 +31,6 @@ def cross_entropy_loss_derivative(outputs: np.ndarray, targets: np.ndarray):
     # Taken from the course instructors post
     return np.where(outputs != 0, -targets / outputs, 0.0)
 
-# def binary_cross_entropy_loss(targets: np.ndarray, outputs: np.ndarray) -> float:
-#     """
-#     Args:
-#         targets: labels/targets of each image of shape: [batch size, 1]
-#         outputs: outputs of model of shape: [batch size, 1]
-#     Returns:
-#         Cross entropy error (float)
-#     """
-#     assert targets.shape == outputs.shape,\
-#         f"Targets shape: {targets.shape}, outputs: {outputs.shape}"
-
-#     batch_size = targets.shape[0]
-#     loss = np.zeros(batch_size)
-#     for i in range(batch_size):
-#         y = targets[i, 0]
-#         y_hat = outputs[i, 0]
-#         loss[i] = -(y * np.log(y_hat) + (1 - y) * np.log(1 - y_hat))
-
-#     return np.average(loss)
-
-
-def binary_cross_entropy_loss(outputs: np.ndarray, targets: np.ndarray) -> float:
-    """
-    Args:
-        outputs: outputs of model of shape: (batch size)
-        targets: labels/targets of each image of shape: (batch size)
-    Returns:
-        Cross entropy error (float)
-    """
-    assert targets.shape == outputs.shape, "Targets shape: {}, outputs: {}".format(
-        targets.shape, outputs.shape)
-
-    loss = - (targets * np.log(outputs)) + (1 - targets) * np.log(1 - outputs)
-    return np.average(loss)
-
-    # batch_size = targets.shape
-    # loss = np.zeros(batch_size)
-
-    # for i in range(batch_size):
-    #     target = targets[i]
-    #     output = outputs[i]
-    #     loss[i] = -(target * np.log(output) +
-    #                 (1 - target) * np.log(1 - output))
-
-    # return np.average(loss)
-
 
 def MSE(outputs: np.ndarray, targets: np.ndarray) -> float:
     """
@@ -162,36 +57,6 @@ def MSE_derivative(outputs, targets):
     number_of_outputs = outputs.shape[0]
     # ? negative or positive return? Maybe add a minus sign before retur
     return 2.0 / number_of_outputs * (outputs - targets)
-
-
-def run_activation_function(af, inputs):
-    if(af == ActivationFunction.SIGMOID):
-        return sigmoid(inputs)
-    elif(af == ActivationFunction.TANH):
-        return tanh(inputs)
-    elif(af == ActivationFunction.RELU):
-        return relu(inputs)
-    elif(af == ActivationFunction.LINEAR):
-        return linear(inputs)
-    elif(af == ActivationFunction.SOFTMAX):
-        return softmax_fun(inputs)
-    else:
-        raise NotImplementedError()
-
-
-def derivative_activation_function(af, x):
-    if(af == ActivationFunction.SIGMOID):
-        return sigmoid_derivative(x)
-    elif(af == ActivationFunction.TANH):
-        return tanh_derivative(x)
-    elif(af == ActivationFunction.RELU):
-        return relu_derivative(x)
-    elif(af == ActivationFunction.LINEAR):
-        return linear_derivative(x)
-    elif(af == ActivationFunction.SOFTMAX):
-        return softmax_derivative(x)
-    else:
-        raise NotImplementedError()
 
 
 def run_loss_function(loss_function, outputs, targets):
@@ -233,134 +98,6 @@ def accuracy(outputs, targets):
             correct_predictions += 1
 
     return correct_predictions / dataset_size
-
-
-def glorot_normal(neurons_in_previous_layer, neurons_in_this_layer):
-    standard_deviation = np.sqrt(
-        2 / (neurons_in_previous_layer + neurons_in_this_layer))
-    return np.random.normal(0.0, standard_deviation,
-                            size=(neurons_in_previous_layer, neurons_in_this_layer))
-
-
-def glorot_uniform(neurons_in_previous_layer, neurons_in_this_layer):
-    standard_deviation = np.sqrt(
-        6.0 / (neurons_in_previous_layer + neurons_in_this_layer))
-    return np.random.uniform(-standard_deviation, standard_deviation,
-                             size=(neurons_in_previous_layer, neurons_in_this_layer))
-
-
-def init_weights_with_range(low, high, neurons_in_previous_layer, neurons_in_this_layer):
-    return np.random.uniform(low, high, size=(neurons_in_previous_layer, neurons_in_this_layer))
-
-
-class Layer:
-
-    def __init__(self, neuron_count, neurons_in_previous_layer, activation_function, learning_rate,
-                 initial_weight_ranges, initial_bias_ranges, verbose=False, name=""):
-
-        self.neuron_count = neuron_count
-
-        if initial_weight_ranges == "glorot_normal":
-            self.weights = glorot_normal(
-                neurons_in_previous_layer, neuron_count)
-        elif initial_weight_ranges == "glorot_uniform":
-            self.weights = glorot_uniform(
-                neurons_in_previous_layer, neuron_count)
-        else:
-            self.weights = init_weights_with_range(
-                initial_weight_ranges[0], initial_weight_ranges[1], neurons_in_previous_layer, neuron_count)
-
-        # One bias per neuron, column vector
-        self.bias = np.random.uniform(
-            initial_bias_ranges[0], initial_bias_ranges[1], size=(neuron_count, 1))
-        self.activation_function = activation_function
-        self.learning_rate = learning_rate
-        self.verbose = verbose
-        self.name = name
-
-    def forward_pass(self, X):
-        """
-        Args:
-            X: np.ndarray of shape (self.neurons_in_previous_layer, batch_size)
-        Returns:
-            np.ndarray of shape (self.neuron_count, batch_size)
-        """
-        if self.activation_function == ActivationFunction.SOFTMAX:
-            weighted_inputs = X
-        else:
-            weighted_inputs = np.matmul(self.weights.T, X) + self.bias
-        self.prev_layer_outputs = X
-
-        # self.activations has shape (neurons, batch_size)
-        self.activations = run_activation_function(
-            self.activation_function, weighted_inputs)
-
-        if self.verbose:
-            print("Forward passing layer", self.name)
-            print("Input (input_size, batch_size):\n", X)
-            print("Weights:\n", self.weights)
-            print("Bias:\n", self.bias)
-            print("Output:\n", self.activations)
-
-        return self.activations
-
-    def backward_pass(self, R):
-        """
-        Performs backward pass over one layer.
-
-        Args
-            R: np.ndarray of shape (batch_size, neurons_in_this_layer)
-
-        Returns
-            np.ndarray of shape (batch_size, neurons_in_previous_layer), where neurons_in_previous_layer is
-            the neuron count of the layer to the left (i.e., the input to this layer).
-        """
-        # print(R.shape)
-        # TODO transpose all R to end this mess
-        if self.activation_function == ActivationFunction.SOFTMAX:
-            activations = self.activations.T  # (batch_size, neurons)
-
-            batch_size = activations.shape[0]
-            for b in range(batch_size):
-                # Builds the J-Soft matrix for each case in the batch
-                j_soft = np.empty((self.neuron_count, self.neuron_count))
-                for i in range(self.neuron_count):
-                    for j in range(self.neuron_count):
-                        if i == j:
-                            j_soft[i, j] = activations[b, i] - \
-                                activations[b, i] ** 2
-                        else:
-                            j_soft[i, j] = - activations[b, i] * \
-                                activations[b, j]
-
-                # Multiply iteratively because j_soft changes for each case in the batch
-                R[b] = np.matmul(R[b], j_soft)
-
-            return R
-
-        activation_gradient = derivative_activation_function(
-            self.activation_function, self.activations).T
-        # print("AG", activation_gradient.shape)
-        R = activation_gradient * R  # ? * here??
-
-        # Gradients for weights and bias
-        batch_size = R.shape[0]
-        # print("batch_size", batch_size)
-        # print("Prev layer output", self.prev_layer_outputs.shape)
-        # Divide by batch_size to get the average gradients over the batch
-        # The average works because matrix multiplication sums the gradients
-        gradient_weights = (self.prev_layer_outputs @ R) / \
-            batch_size  # ! not .T here
-        gradient_bias = (R.T.sum(axis=-1, keepdims=True)) / batch_size
-
-        self.weights -= self.learning_rate * gradient_weights
-        self.bias -= self.learning_rate * gradient_bias
-
-        # next_R = np.transpose(self.weights @ R.T)
-        return np.matmul(R, self.weights.T)
-
-    def __str__(self):
-        return "{} neurons with {} as activation function".format(self.neuron_count, self.activation_function)
 
 
 class NeuralNetwork:
@@ -555,46 +292,12 @@ class NeuralNetwork:
 
 
 if __name__ == "__main__":
-    # X = np.array([[0.1, 0.2, 0.51, 0.3], [
-    #              0.8, 0.7, 0.49, 0.1], [0.1, 0.1, 0.0, 0.6]])
-    # print(X)
-    # X = one_hot_encode(X)
-    # print(X)
-    # exit()
-    # learning_rate = 0.1
-    # neurons_in_each_layer = [2, 2, 2]
-    # activation_functions = [
-    #     ActivationFunction.SIGMOID, ActivationFunction.SOFTMAX]
-    # loss_function = LossFunction.CROSS_ENTROPY
-    # global_weight_regularization_option = None
-    # global_weight_regularization_rate = None
-    # initial_weight_ranges = None
-    # initial_bias_ranges = None
-    # softmax = False
-    # verbose = True
-    # nn = NeuralNetwork(learning_rate, neurons_in_each_layer, activation_functions, loss_function,
-    #                    global_weight_regularization_option, global_weight_regularization_rate, initial_weight_ranges,
-    #                    initial_bias_ranges, softmax, verbose)
-
-    # X_train = np.array([[1, 1], [1, 1]])
-    # Y_train = np.array([[1, 1], [0, 0]])
-    # print(X_train)
-    # print(Y_train)
-    # for i in range(5):
-    #     output = nn.forward_pass(X_train)
-    #     print("Output:\n", output)
-    #     loss = run_loss_function(loss_function, output, Y_train)
-    #     print("Loss:", round(loss, 6))
-    #     nn.backward_pass(output, Y_train)
-
-    # exit()
-
     learning_rate = 0.1
     neurons_in_each_layer = [2, 3, 3, 2]
     activation_functions = [
-        ActivationFunction.RELU, ActivationFunction.RELU, ActivationFunction.SOFTMAX]
+        ActivationFunction.RELU, ActivationFunction.RELU, ActivationFunction.LINEAR]
     softmax = True
-    loss_function = LossFunction.MSE
+    loss_function = LossFunction.CROSS_ENTROPY
     global_weight_regularization_option = None
     global_weight_regularization_rate = None
     initial_weight_ranges = "glorot_normal"
@@ -657,7 +360,7 @@ if __name__ == "__main__":
 
         return X, targets
 
-    epochs = 200
+    epochs = 40
     batch_size = 64
     X, Y = XOR_data(20000)
 
