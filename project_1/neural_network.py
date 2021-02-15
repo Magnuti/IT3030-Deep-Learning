@@ -148,7 +148,7 @@ class NeuralNetwork:
 
         return layers
 
-    def batch_loader(self, X: np.ndarray, Y: np.ndarray, batch_size: int, shuffle=False):
+    def batch_loader(self, X: np.ndarray, Y: np.ndarray, batch_size: int, shuffle=True):
         """
         Creates a batch generator over the whole dataset (X, Y) which returns a generator iterating over all the batches.
         This function is called once each epoch.
@@ -206,12 +206,15 @@ class NeuralNetwork:
         Performs backward pass over a mini-batch.
 
         Args
-            outputs: np.ndarray of shape (?) # TODO
-            targets: np.ndarray of shape (?)
+            outputs: np.ndarray of shape (output_size, batch_size)
+            targets: np.ndarray the same shape as outputs
         """
+        assert outputs.shape == targets.shape
 
+        # Jacobian loss
         R = derivative_loss_function(self.loss_function, outputs, targets).T
         for i, layer in reversed(list(enumerate(self.layers))):
+            # Skip input layer
             if layer is not None:
                 R = layer.backward_pass(R)
 
@@ -241,8 +244,8 @@ class NeuralNetwork:
 
         iteration = 0
         # Validate every time we run through 20 % of the datset
-        iterations_per_validation = (
-            X_train.shape[0] // batch_size) // 5  # todo fix %
+        # iterations_per_validation = (
+        #     X_train.shape[0] // batch_size) // 5  # todo fix %
         for epoch in range(epochs):
             train_loader = self.batch_loader(
                 X_train, Y_train, batch_size, shuffle=shuffle)

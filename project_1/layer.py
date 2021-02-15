@@ -57,30 +57,44 @@ def softmax(x: np.ndarray) -> np.ndarray:
     return x / x.sum(axis=0)
 
 
-def run_activation_function(af, inputs):
+def run_activation_function(af, X):
+    """
+    Args:
+        X: np.ndarray of shape (neurons, batch_size)
+
+    Returns
+        np.ndarray of the same shape as X
+    """
     if(af == ActivationFunction.SIGMOID):
-        return sigmoid(inputs)
+        return sigmoid(X)
     elif(af == ActivationFunction.TANH):
-        return tanh(inputs)
+        return tanh(x)
     elif(af == ActivationFunction.RELU):
-        return relu(inputs)
+        return relu(X)
     elif(af == ActivationFunction.LINEAR):
-        return linear(inputs)
+        return linear(X)
     elif(af == ActivationFunction.SOFTMAX):
-        return softmax(inputs)
+        return softmax(X)
     else:
         raise NotImplementedError()
 
 
-def derivative_activation_function(af, x):
+def derivative_activation_function(af, X):
+    """
+    Args:
+        X: np.ndarray of shape (neurons, batch_size)
+
+    Returns
+        np.ndarray of the same shape as X
+    """
     if(af == ActivationFunction.SIGMOID):
-        return sigmoid_derivative(x)
+        return sigmoid_derivative(X)
     elif(af == ActivationFunction.TANH):
-        return tanh_derivative(x)
+        return tanh_derivative(X)
     elif(af == ActivationFunction.RELU):
-        return relu_derivative(x)
+        return relu_derivative(X)
     elif(af == ActivationFunction.LINEAR):
-        return linear_derivative(x)
+        return linear_derivative(X)
     # SoftMax derivative is not used
     else:
         raise NotImplementedError()
@@ -135,11 +149,12 @@ class Layer:
         Returns:
             np.ndarray of shape (self.neuron_count, batch_size)
         """
+        self.inputs = X
+
         if self.activation_function == ActivationFunction.SOFTMAX:
             weighted_inputs = X
         else:
             weighted_inputs = np.matmul(self.weights.T, X) + self.bias
-        self.prev_layer_outputs = X
 
         # self.activations has shape (neurons, batch_size)
         self.activations = run_activation_function(
@@ -165,8 +180,6 @@ class Layer:
             np.ndarray of shape (batch_size, neurons_in_previous_layer), where neurons_in_previous_layer is
             the neuron count of the layer to the left (i.e., the input to this layer).
         """
-        # print(R.shape)
-        # TODO transpose all R to end this mess
         if self.activation_function == ActivationFunction.SOFTMAX:
             activations = self.activations.T  # (batch_size, neurons)
 
@@ -190,23 +203,18 @@ class Layer:
 
         activation_gradient = derivative_activation_function(
             self.activation_function, self.activations).T
-        # print("AG", activation_gradient.shape)
-        R = activation_gradient * R  # ? * here??
+        R *= activation_gradient
 
         # Gradients for weights and bias
         batch_size = R.shape[0]
-        # print("batch_size", batch_size)
-        # print("Prev layer output", self.prev_layer_outputs.shape)
         # Divide by batch_size to get the average gradients over the batch
         # The average works because matrix multiplication sums the gradients
-        gradient_weights = (self.prev_layer_outputs @ R) / \
-            batch_size  # ! not .T here
-        gradient_bias = (R.T.sum(axis=-1, keepdims=True)) / batch_size
+        gradient_weights = np.matmul(self.inputs, R) / batch_size
+        gradient_bias = R.sum(axis=0, keepdims=True).T / batch_size
 
         self.weights -= self.learning_rate * gradient_weights
         self.bias -= self.learning_rate * gradient_bias
 
-        # next_R = np.transpose(self.weights @ R.T)
         return np.matmul(R, self.weights.T)
 
     def __str__(self):
