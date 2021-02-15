@@ -68,7 +68,7 @@ def run_activation_function(af, X):
     if(af == ActivationFunction.SIGMOID):
         return sigmoid(X)
     elif(af == ActivationFunction.TANH):
-        return tanh(x)
+        return tanh(X)
     elif(af == ActivationFunction.RELU):
         return relu(X)
     elif(af == ActivationFunction.LINEAR):
