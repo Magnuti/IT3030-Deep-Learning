@@ -12,7 +12,7 @@ from data_generator_parser import DataGeneratorArguments
 class Classes(Enum):
     CIRCLE = 0
     RECTANGLE = 1
-    # VERTICAL_BARS = 2
+    VERTICAL_BARS = 2
     CROSS = 3
 
 
@@ -81,7 +81,8 @@ class DataGenerator:
         rectangles = self.__create_rectangles(
             self.args.rectanlge_range_height, self.args.rectanlge_range_width)
 
-        # vertical_bars = self.__create_vertical_bars()
+        vertical_bars = self.__create_vertical_bars(
+            self.args.vertical_bar_width)
 
         crosses = self.__create_crosses(
             self.args.cross_size_range, self.args.cross_thickness_range)
@@ -89,7 +90,7 @@ class DataGenerator:
         # Add noise
         circles = self.__add_noise(circles)
         rectangles = self.__add_noise(rectangles)
-        # vertical_bars = self.__add_noise(vertical_bars)
+        vertical_bars = self.__add_noise(vertical_bars)
         crosses = self.__add_noise(crosses)
 
         def save_figures(figures, figure_name):
@@ -101,6 +102,7 @@ class DataGenerator:
         # Save images
         save_figures(circles, Classes.CIRCLE.name.lower())
         save_figures(rectangles, Classes.RECTANGLE.name.lower())
+        save_figures(vertical_bars, Classes.VERTICAL_BARS.name.lower())
         save_figures(crosses, Classes.CROSS.name.lower())
 
     def __add_noise(self, images):
@@ -201,8 +203,31 @@ class DataGenerator:
 
         return rectangles
 
-    def __create_vertical_bars(self):
-        raise NotImplementedError()
+    def __create_vertical_bars(self, vertical_bar_width):
+        vertical_bars = []
+        for i in range(self.args.images_in_each_class):
+            this_bar_width = randint(
+                vertical_bar_width[0], vertical_bar_width[1])
+
+            indexes = []
+            k = 0
+            for j in range(self.args.image_dimension):
+                if k < this_bar_width:
+                    indexes.append(j)
+
+                k += 1
+                if k >= this_bar_width * 4:
+                    k = 0
+
+            img = np.zeros((self.args.image_dimension,
+                            self.args.image_dimension))
+
+            img[indexes] = 1
+            img = np.roll(img, randint(0, self.args.image_dimension), axis=0)
+
+            vertical_bars.append(img)
+
+        return vertical_bars
 
     def __create_crosses(self, cross_size_range, cross_thickness_range):
         crosses = []

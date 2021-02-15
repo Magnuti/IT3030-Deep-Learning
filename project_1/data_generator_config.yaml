@@ -17,12 +17,12 @@ rectanlge_range_height: [10, 20]
 rectanlge_range_width: [10, 20]
 vertical_bar_width: [1, 3]
 cross_size_range: [10, 20] # Height and width is the same for the cross
-cross_thickness_range: [1, 3]
+cross_thickness_range: [1, 2]
 
 images_in_each_class: 1000
 
 # Specifies the fraction of randomly-set pixels in each image.
-noise_ratio: 0.0
+noise_ratio: 0.01
 
 # Whether the returned arrays should be 1D or 2D
 flatten: True
