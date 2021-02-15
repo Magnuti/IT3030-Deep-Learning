@@ -257,22 +257,21 @@ class NeuralNetwork:
 
                 train_loss_history.append(loss_train)
 
-                # Validation step every TODO epoch
-                if iteration % iterations_per_validation == 0:
-                    # print("Validating...")
-                    output_val = self.forward_pass(X_val)
+                # Validation step at every iteration
+                # if iteration % iterations_per_validation == 0:
+                output_val = self.forward_pass(X_val)
 
-                    loss_val = run_loss_function(
-                        self.loss_function, output_val, Y_val)
-                    accuracy_train = accuracy(output_train, Y_batch)
-                    accuracy_val = accuracy(output_val, Y_val)
+                loss_val = run_loss_function(
+                    self.loss_function, output_val, Y_val)
+                accuracy_train = accuracy(output_train, Y_batch)
+                accuracy_val = accuracy(output_val, Y_val)
 
-                    val_loss_history.append(loss_val)
-                    train_accuracy_history.append(accuracy_train)
-                    val_accuracy_history.append(accuracy_val)
+                val_loss_history.append(loss_val)
+                train_accuracy_history.append(accuracy_train)
+                val_accuracy_history.append(accuracy_val)
 
-                    print("Epoch: {}, iteration: {}, training loss: {}, validation loss {}:".format(
-                        epoch, iteration, loss_train, loss_val))
+                print("Epoch: {}, iteration: {}, training loss: {}, validation loss {}:".format(
+                    epoch, iteration, loss_train, loss_val))
 
                 iteration += 1
                 # if iteration >= 2:  # !
@@ -280,15 +279,35 @@ class NeuralNetwork:
 
         return train_loss_history, train_accuracy_history, val_loss_history, val_accuracy_history
 
-    def predict(self, X):
+    def final_accuracy(self, X_test, Y_test):
         """
-        Performs classification over X
+        Calculates the prediction for a test set
 
         Args
-            X: np.ndarray of shape (dataset size, input_size)
+            X_test: np.ndarray of shape (batch_size, input_size)
+            Y_test: np.ndarray of shape (batch_size, output_size)
+
+        Return
+            accuracy: float
         """
-        # TODO one-hot encode the output?
-        return self.forward_pass(X.T)
+        output = self.forward_pass(X_test.T)
+        return accuracy(output, Y_test.T)
+
+    def predict(self, X, one_hot=True):
+        """
+        Feeds X into the model and returns the output.
+
+        Args
+            X: np.ndarray of shape (batch_size, input_size)
+            one_hot: bool, whether the output should be one-hot encoded.
+
+        Return
+            np.ndarray of shape (batch_size, output_size)
+        """
+        output = self.forward_pass(X.T)
+        if one_hot:
+            output = one_hot_encode(output)
+        return output.T
 
 
 if __name__ == "__main__":

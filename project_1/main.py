@@ -27,5 +27,8 @@ if __name__ == "__main__":
     train_loss_history, train_accuracy_history, val_loss_history, val_accuracy_history = nn.train(
         nn_args.epochs, nn_args.batch_size, X_train, Y_train, X_val, Y_val)
 
-    plot_loss_and_accuracy(train_loss_history, train_accuracy_history,
-               val_loss_history, val_accuracy_history)
+    accuracy = nn.final_accuracy(X_test, Y_test)
+    print("Final accuracy", accuracy)
+
+    plot_loss_and_accuracy(
+        train_loss_history, train_accuracy_history, val_loss_history, val_accuracy_history)
