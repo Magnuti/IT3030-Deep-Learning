@@ -242,6 +242,6 @@ if __name__ == "__main__":
     args = DataGeneratorArguments()
     args.parse_arguments()
     data_generator = DataGenerator(args)
-    # data_generator.create_figures()
+    data_generator.create_figures()
     # data, targets = data_generator.get_images()
     data_generator.random_sample()

@@ -469,10 +469,8 @@ class NeuralNetwork:
         Performs backward pass over a mini-batch.
 
         Args
-            outputs: np.ndarray of shape (?)
+            outputs: np.ndarray of shape (?) # TODO
             targets: np.ndarray of shape (?)
-        Returns
-            None
         """
 
         R = derivative_loss_function(self.loss_function, outputs, targets).T
