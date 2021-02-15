@@ -4,6 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pathlib
 import math
+from os import listdir
 
 from data_generator_parser import DataGeneratorArguments
 
@@ -11,7 +12,7 @@ from data_generator_parser import DataGeneratorArguments
 class Classes(Enum):
     CIRCLE = 0
     RECTANGLE = 1
-    TRIANGLE = 2
+    # VERTICAL_BARS = 2
     CROSS = 3
 
 
@@ -22,13 +23,65 @@ class DataGenerator:
         self.output_dir = pathlib.Path("images")
         self.output_dir.mkdir(exist_ok=True)
 
+    def get_images(self, flatten=True):
+        """
+        Returns data and targets.
+        """
+        class_names = [e.name.lower() for e in Classes]
+        files = listdir(self.output_dir)
+        data = []
+        targets = []
+        for i, f in enumerate(files):
+            for i, class_name in enumerate(class_names):
+                if class_name in f:
+                    target_number = i
+                    break
+
+            target = np.zeros(len(class_names))
+            target[target_number] = 1.0
+
+            image = plt.imread(self.output_dir.joinpath(f))
+            # Apparently this returns a (M, N, 4) array because it thinks it is a  RGBA image..
+            image = image[:, :, 0]
+
+            if flatten:
+                image = image.flatten()
+
+            data.append(image)
+            targets.append(target)
+
+        return np.array(data), np.array(targets)
+
+    def random_sample(self, number_of_images=10):
+        files = listdir(self.output_dir)
+        plt.subplots(len(Classes), number_of_images)
+        for i, figure_class in enumerate(Classes):
+            figure_name = figure_class.name.lower()
+            figure_files = list(
+                filter(lambda x: figure_name in x, files))
+            figure_files = np.random.choice(
+                figure_files, size=number_of_images)
+            for j, f in enumerate(figure_files):
+                image = plt.imread(self.output_dir.joinpath(f))
+                # Apparently this returns a (M, N, 4) array because it thinks it is a  RGBA image..
+                image = image[:, :, 0]
+
+                plt.subplot(len(Classes), number_of_images,
+                            i * number_of_images + j + 1)
+                plt.xticks([])
+                plt.yticks([])
+                plt.imshow(image)
+
+        plt.show()
+
     def create_figures(self):
-        # TODO add args.flatten option to return either 2D-array or 1D array
 
         circles = self.__create_circles(self.args.circle_radius_range)
 
         rectangles = self.__create_rectangles(
             self.args.rectanlge_range_height, self.args.rectanlge_range_width)
+
+        # vertical_bars = self.__create_vertical_bars()
 
         crosses = self.__create_crosses(
             self.args.cross_size_range, self.args.cross_thickness_range)
@@ -36,17 +89,19 @@ class DataGenerator:
         # Add noise
         circles = self.__add_noise(circles)
         rectangles = self.__add_noise(rectangles)
+        # vertical_bars = self.__add_noise(vertical_bars)
         crosses = self.__add_noise(crosses)
 
         def save_figures(figures, figure_name):
             for i, fig in enumerate(figures):
+                fig *= 255
                 plt.imsave(self.output_dir.joinpath(
-                    "{}_{}.png".format(figure_name, i)), fig)
+                    "{}_{}.png".format(figure_name, i)), fig, cmap="gray")
 
         # Save images
-        save_figures(circles, "circle")
-        save_figures(rectangles, "rectangle")
-        save_figures(crosses, "cross")
+        save_figures(circles, Classes.CIRCLE.name.lower())
+        save_figures(rectangles, Classes.RECTANGLE.name.lower())
+        save_figures(crosses, Classes.CROSS.name.lower())
 
     def __add_noise(self, images):
         for i, image in enumerate(images):
@@ -140,11 +195,13 @@ class DataGenerator:
             img[start_y, start_x:end_x] = 1
             img[end_y, start_x:end_x] = 1
 
+            img[end_y, end_x] = 1  # Hotfix for the corner pixel bottom-right
+
             rectangles.append(img)
 
         return rectangles
 
-    def __create_triangles(self):
+    def __create_vertical_bars(self):
         raise NotImplementedError()
 
     def __create_crosses(self, cross_size_range, cross_thickness_range):
@@ -185,4 +242,6 @@ if __name__ == "__main__":
     args = DataGeneratorArguments()
     args.parse_arguments()
     data_generator = DataGenerator(args)
-    data_generator.create_figures()
+    # data_generator.create_figures()
+    # data, targets = data_generator.get_images()
+    data_generator.random_sample()

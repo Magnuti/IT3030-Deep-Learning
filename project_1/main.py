@@ -1,28 +1,31 @@
 import numpy as np
 
 from data_generator_parser import DataGeneratorArguments
+from data_generator import DataGenerator
 from config_parser import Arguments
 from neural_network import NeuralNetwork
+from utils import split_dataset, plot_loss_and_accuracy, shuffle_data_and_targets
 
 if __name__ == "__main__":
     data_generator_args = DataGeneratorArguments()
     data_generator_args.parse_arguments()
 
-    args = Arguments()
-    args.parse_arguments()
+    nn_args = Arguments()
+    nn_args.parse_arguments()
 
-    nn = NeuralNetwork(args.learning_rate, args.neurons_in_each_layer, args.activation_functions, args.loss_function,
-                       args.global_weight_regularization_option, args.global_weight_regularization_rate, args.initial_weight_ranges,
-                       args.initial_bias_ranges, args.verbose)
+    data_generator = DataGenerator(data_generator_args)
+    data, targets = data_generator.get_images()
+    data, targets = shuffle_data_and_targets(data, targets)
 
-    image_size = data_generator_args.image_dimension**2
-    img = np.ones((image_size, args.batch_size))
-    targets = np.ones((args.neurons_in_each_layer[-1], args.batch_size))
+    nn = NeuralNetwork(nn_args.learning_rate, nn_args.neurons_in_each_layer, nn_args.activation_functions, nn_args.loss_function,
+                       nn_args.global_weight_regularization_option, nn_args.global_weight_regularization_rate, nn_args.initial_weight_ranges,
+                       nn_args.initial_bias_ranges, nn_args.verbose)
 
-    # ! Not working now
+    X_train, Y_train, X_val, Y_val, X_test, Y_test = split_dataset(
+        data, targets)
 
-    # nn.train(1, img)
-    outputs = nn.forward_pass(img)
-    # print("Out:", outputs)
+    train_loss_history, train_accuracy_history, val_loss_history, val_accuracy_history = nn.train(
+        nn_args.epochs, nn_args.batch_size, X_train, Y_train, X_val, Y_val)
 
-    nn.backward_pass(outputs, targets)
+    plot_loss_and_accuracy(train_loss_history, train_accuracy_history,
+               val_loss_history, val_accuracy_history)

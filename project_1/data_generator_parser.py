@@ -19,7 +19,7 @@ class DataGeneratorArguments:
         self.circle_radius_range = config_data["circle_radius_range"]
         self.rectanlge_range_height = config_data["rectanlge_range_height"]
         self.rectanlge_range_width = config_data["rectanlge_range_width"]
-        self.triangle_range = config_data["triangle_range"]
+        self.vertical_bar_width = config_data["vertical_bar_width"]
         self.cross_size_range = config_data["cross_size_range"]
         self.cross_thickness_range = config_data["cross_thickness_range"]
         self.images_in_each_class = config_data["images_in_each_class"]

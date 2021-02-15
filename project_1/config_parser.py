@@ -11,6 +11,7 @@ class Arguments:
         self.verbose = config_data["verbose"]
         self.learning_rate = config_data["learning_rate"]
         self.batch_size = config_data["batch_size"]
+        self.epochs = config_data["epochs"]
         self.neurons_in_each_layer = config_data["neurons_in_each_layer"]
 
         activation_functions = config_data["activation_functions"]
@@ -35,7 +36,6 @@ class Arguments:
         self.global_weight_regularization_rate = config_data["global_weight_regularization_rate"]
         self.initial_weight_ranges = config_data["initial_weight_ranges"]
         self.initial_bias_ranges = config_data["initial_bias_ranges"]
-        self.softmax = config_data["softmax"]
         self.dataset_filename = config_data["dataset_filename"]
 
     def __str__(self):
