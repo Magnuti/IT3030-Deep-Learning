@@ -1,31 +1,14 @@
-# Beware of changing these parameters
-training_ratio: 0.7
-validation_ratio: 0.2
-testing_ratio: 0.1
-min_image_dimension: 10
-max_image_dimension: 50
+# Length of the bitstring that changes as time moves (i.e., as the sequence progresses)
+# Typically in the interval [5, 20]
+pattern_length: 10
 
-# Change these parameters as you like
+# How long one sequence should be
+# Typically in the interval [3, 20]
+sequence_length: 20
 
-# Specifies the image dimensions of a square image (i.e., n x n)
-image_dimension: 25
+# How many sequences to generate (typically between 10-500)
+sequences: 200
 
-# Adjust the size ranges to restrict the size of the figures within the n x n image
-# It is best to keep the minimum range > 1 (expect for thickness)
-circle_radius_range: [5, 10]
-rectanlge_range_height: [10, 20]
-rectanlge_range_width: [10, 20]
-vertical_bar_width: [1, 3]
-cross_size_range: [10, 20] # Height and width is the same for the cross
-cross_thickness_range: [1, 2]
-
-images_in_each_class: 1000
-
-# Specifies the fraction of randomly-set pixels in each image.
-noise_ratio: 0.01
-
-# Whether the returned arrays should be 1D or 2D
-flatten: True
-
-# Whether the objects in the image should be centered or not
-center: True
+# Specifies the fraction of randomly-set pixels in each sequence.
+# Do NOT use this on classification problems, only use on regression problems
+noise_ratio: 0.0
