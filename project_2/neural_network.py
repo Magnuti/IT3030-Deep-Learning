@@ -1,7 +1,7 @@
 import numpy as np
 
 from constants import ActivationFunction, LossFunction
-from layer import Layer
+from layers import Layer
 from utils import split_dataset, one_hot_encode, plot_loss_and_accuracy
 
 
