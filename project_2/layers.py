@@ -142,6 +142,10 @@ class Layer:
         self.verbose = verbose
         self.name = name
 
+        # Cache all activations and inputs because we need it to do backpropagation
+        self.inputs_history = []
+        self.activations_history = []
+
     def forward_pass(self, X):
         """
         Args:
@@ -149,25 +153,27 @@ class Layer:
         Returns:
             np.ndarray of shape (self.neuron_count, batch_size)
         """
-        self.inputs = X
+        self.inputs_history.append(X)
 
         if self.activation_function == ActivationFunction.SOFTMAX:
             weighted_inputs = X
         else:
             weighted_inputs = np.matmul(self.weights.T, X) + self.bias
 
-        # self.activations has shape (neurons, batch_size)
-        self.activations = run_activation_function(
+        # activations has shape (neurons, batch_size)
+        activations = run_activation_function(
             self.activation_function, weighted_inputs)
+
+        self.activations_history.append(activations)
 
         if self.verbose:
             print("Forward passing layer", self.name)
             print("Input (input_size, batch_size):\n", X)
             print("Weights:\n", self.weights)
             print("Bias:\n", self.bias)
-            print("Output:\n", self.activations)
+            print("Output:\n", activations)
 
-        return self.activations
+        return activations
 
     def backward_pass(self, R):
         """
@@ -219,6 +225,68 @@ class Layer:
 
     def __str__(self):
         return "{} neurons with {} as activation function".format(self.neuron_count, self.activation_function)
+
+
+class RecurrentLayer(Layer):
+    def __init__(self, neuron_count, neurons_in_previous_layer, activation_function, learning_rate,
+                 initial_weight_ranges, initial_bias_ranges, verbose=False, name=""):
+        super().__init__(neuron_count, neurons_in_previous_layer, activation_function,
+                         learning_rate, initial_weight_ranges, initial_bias_ranges, verbose, name)
+
+        # Init the recurrent weights in the same fashion as the "normal" weights.
+        if initial_weight_ranges == "glorot_normal":
+            self.recurrent_weights = glorot_normal(
+                neuron_count, neuron_count)
+        elif initial_weight_ranges == "glorot_uniform":
+            self.recurrent_weights = glorot_uniform(
+                neuron_count, neuron_count)
+        else:
+            self.recurrent_weights = init_weights_with_range(
+                initial_weight_ranges[0], initial_weight_ranges[1], neuron_count, neuron_count)
+
+    def forward_pass(self, X):
+        """
+        Args:
+            X: np.ndarray of shape (self.neurons_in_previous_layer, batch_size)
+        Returns:
+            np.ndarray of shape (self.neuron_count, batch_size)
+        """
+        self.inputs_history.append(X)
+
+        weighted_inputs = np.matmul(self.weights.T, X) + self.bias
+
+        # Skip first forward in a sequence
+        if self.activations_history:
+            weighted_inputs += np.matmul(self.recurrent_weights.T,
+                                         self.activations_history[-1])
+
+        # activations has shape (neurons, batch_size)
+        activations = run_activation_function(
+            self.activation_function, weighted_inputs)
+
+        self.activations_history.append(activations)
+
+        if self.verbose:
+            print("Forward passing layer", self.name)
+            print("Input (input_size, batch_size):\n", X)
+            print("Weights:\n", self.weights)
+            print("Bias:\n", self.bias)
+            print("Output:\n", activations)
+
+        return activations
+
+    def backward_pass(self, R):
+        """
+        Performs backward pass over one layer.
+
+        Args
+            R: np.ndarray of shape (batch_size, neurons_in_this_layer)
+
+        Returns
+            np.ndarray of shape (batch_size, neurons_in_previous_layer), where neurons_in_previous_layer is
+            the neuron count of the layer to the left (i.e., the input to this layer).
+        """
+        pass
 
 
 if __name__ == "__main__":

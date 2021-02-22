@@ -9,11 +9,11 @@ class ActivationFunction(Enum):
     SOFTMAX = "softmax"
 
 
+class LayerType(Enum):
+    DENSE = "dense"
+    RECURRENT = "recurrent"
+
+
 class LossFunction(Enum):
     MSE = "MSE"
     CROSS_ENTROPY = "cross_entropy"
-
-
-class GlobalWeightRegularizationOption(Enum):
-    L1 = 0
-    L2 = 1

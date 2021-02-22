@@ -2,20 +2,18 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-def split_dataset(X, Y, training_ratio=0.7, validation_ratio=0.2, test_ratio=0.1):
+def split_dataset(XY, training_ratio=0.7, validation_ratio=0.2, test_ratio=0.1):
     """
     Splits the dataset into training, validation and testing data.
 
     Args
-        X: inputs of shape (dataset_size, input_size)
-        Y: targets of shape (dataset_size, output_size)
+        XY: list of sequence cases, each with a tuple of input-output pairs
         training_ratio, validation_ratio and test_ratio must sum to 1
     Returns
-        X_train, Y_train, X_val, Y_val, X_test, Y_test
+        X_train, X_val, X_test
     """
 
-    dataset_size = X.shape[0]
-    assert dataset_size == Y.shape[0]
+    dataset_size = len(XY)
     assert round(training_ratio + validation_ratio + test_ratio,
                  4) == 1.0, "Actual value {}".format(round(training_ratio + validation_ratio + test_ratio, 4))
 
@@ -25,30 +23,7 @@ def split_dataset(X, Y, training_ratio=0.7, validation_ratio=0.2, test_ratio=0.1
     testing_index = int(
         np.floor(dataset_size * test_ratio)) + validation_index
 
-    return (X[0:training_index], Y[0:training_index],
-            X[training_index:validation_index], Y[training_index:validation_index],
-            X[validation_index:testing_index], Y[validation_index:testing_index])
-
-
-def shuffle_data_and_targets(X, Y):
-    """
-    Shuffles data and target arrays in the same order along axis 0.
-
-    Args
-        X: np.ndarray
-        Y: np.ndarray with of the same shape as X
-
-    Returns
-        X, Y: np.ndarray shuffled
-    """
-    assert X.shape[0] == Y.shape[0], "Shapes are not equal along axis 0: {}, {}".format(
-        X.shape, Y.shape)
-
-    shuffle_indexes = np.arange(X.shape[0])
-    np.random.shuffle(shuffle_indexes)
-    X = X[shuffle_indexes]
-    Y = Y[shuffle_indexes]
-    return X, Y
+    return (XY[0:training_index], XY[training_index:validation_index], XY[validation_index:testing_index])
 
 
 def one_hot_encode(X):

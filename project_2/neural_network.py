@@ -1,7 +1,7 @@
 import numpy as np
 
-from constants import ActivationFunction, LossFunction
-from layers import Layer
+from constants import ActivationFunction, LayerType, LossFunction
+from layers import Layer, RecurrentLayer
 from utils import split_dataset, one_hot_encode, plot_loss_and_accuracy
 
 
@@ -101,16 +101,17 @@ def accuracy(outputs, targets):
 
 
 class NeuralNetwork:
-    def __init__(self, learning_rate, neurons_in_each_layer, activation_functions, softmax,
-                 loss_function, global_weight_regularization_option, global_weight_regularization_rate,
-                 initial_weight_ranges, initial_bias_ranges, verbose):
+    def __init__(self, learning_rate, neurons_in_each_layer, layer_types, activation_functions, softmax,
+                 loss_function, initial_weight_ranges, initial_bias_ranges, verbose):
         self.learning_rate = learning_rate
 
         if softmax:
             # Appends a SoftMax layer as the last layer with as many neurons as the last layer before SoftMax
             neurons_in_each_layer.append(neurons_in_each_layer[-1])
+            layer_types.append(LayerType.DENSE)
 
         self.neurons_in_each_layer = neurons_in_each_layer
+        self.layer_types = layer_types
         # Add None as activation function to the input layer and SoftMax to last layer
         activation_functions.insert(0, None)
         if softmax:
@@ -118,8 +119,6 @@ class NeuralNetwork:
         self.activation_functions = activation_functions
         self.softmax = softmax
         self.loss_function = loss_function
-        self.global_weight_regularization_option = global_weight_regularization_option
-        self.global_weight_regularization_rate = global_weight_regularization_rate
         self.initial_weight_ranges = initial_weight_ranges
         self.initial_bias_ranges = initial_bias_ranges
         self.verbose = verbose
@@ -141,27 +140,31 @@ class NeuralNetwork:
             if i == 0:
                 continue  # Skip input layer
 
-            layers.append(Layer(neuron_count, neurons_in_previous_layer,
-                                self.activation_functions[i], self.learning_rate, self.initial_weight_ranges,
-                                self.initial_bias_ranges, verbose=self.verbose, name="Dense {}".format(i)))
+            if self.layer_types[i - 1] == LayerType.DENSE:
+                layer = Layer(neuron_count, neurons_in_previous_layer, self.activation_functions[i], self.learning_rate,
+                              self.initial_weight_ranges, self.initial_bias_ranges, verbose=self.verbose, name="Dense {}".format(i))
+            elif self.layer_types[i - 1] == LayerType.RECURRENT:
+                layer = RecurrentLayer(neuron_count, neurons_in_previous_layer, self.activation_functions[i], self.learning_rate,
+                                       self.initial_weight_ranges, self.initial_bias_ranges, verbose=self.verbose, name="Recurrent {}".format(i))
+            else:
+                raise NotImplementedError(self.layer_types[i - 1])
+
             neurons_in_previous_layer = neuron_count
+            layers.append(layer)
 
         return layers
 
-    def batch_loader(self, X: np.ndarray, Y: np.ndarray, batch_size: int, shuffle=True):
+    def batch_loader(self, sequence_cases: list, batch_size: int, shuffle=True):
         """
         Creates a batch generator over the whole dataset (X, Y) which returns a generator iterating over all the batches.
         This function is called once each epoch.
 
         Args:
-            X: inputs of shape (dataset_size, input_size)
-            Y: labels of shape (dataset_size, output_size)
+            sequence_cases: list(list(tuple(np.ndarray, np.ndarray)))
+                list of sequence-cases, where each cases is a new list that holds several tuples of input-output pairs
             shuffle (bool): To shuffle the dataset between each epoch or not.
         """
-        assert X.shape[0] == Y.shape[0], "Inputs and targets must be of same length. X: {}, Y:{}".format(
-            X.shape, Y.shape)
-
-        dataset_size = X.shape[0]
+        dataset_size = len(sequence_cases)
         if dataset_size % batch_size == 0:
             num_batches = dataset_size // batch_size
         else:
@@ -176,9 +179,7 @@ class NeuralNetwork:
         for i in range(num_batches):
             # Divides the indicies into into batches
             batch_indices = indices[i * batch_size:(i + 1) * batch_size]
-            x = X[batch_indices]
-            y = Y[batch_indices]
-            yield (x, y)
+            yield np.array(sequence_cases)[batch_indices]
 
     def forward_pass(self, X: np.ndarray):
         """
@@ -218,24 +219,22 @@ class NeuralNetwork:
             if layer is not None:
                 R = layer.backward_pass(R)
 
-    def train(self, epochs, batch_size, X_train, Y_train, X_val, Y_val, shuffle=True):
+    def train(self, epochs, batch_size, XY_train, XY_val, shuffle=True):
         """
         Performs the training phase (forward pass + backward propagation) over a number of epochs.
 
         Args
             epochs: int
-            X_train: np.ndarray of shape (training dataset size, input_size)
-            Y_train: np.ndarray of shape (training dataset size, output_size)
-            X_val: np.ndarray of shape (validation dataset size, input_size)
-            Y_val: np.ndarray of shape (validation dataset size, output_size)
+            XY_train: list of sequence-cases
+            XY_val: list of sequence-cases
             shuffle: bool, whether or not to shuffle the dataset
         """
         print("Training over {} epochs with a batch size of {}".format(
             epochs, batch_size))
 
         # Transpose X and Y because we want them as column vectors
-        X_val = X_val.T
-        Y_val = Y_val.T
+        # X_val = X_val.T
+        # Y_val = Y_val.T
 
         train_loss_history = []
         train_accuracy_history = []
@@ -248,13 +247,30 @@ class NeuralNetwork:
         #     X_train.shape[0] // batch_size) // 5  # todo fix %
         for epoch in range(epochs):
             train_loader = self.batch_loader(
-                X_train, Y_train, batch_size, shuffle=shuffle)
-            for X_batch, Y_batch in iter(train_loader):
+                XY_train, batch_size, shuffle=shuffle)
+            for sequence_cases in iter(train_loader):
                 # Transpose X and Y because we want them as column vectors
-                X_batch = X_batch.T
-                Y_batch = Y_batch.T
-                output_train = self.forward_pass(X_batch)
-                self.backward_pass(output_train, Y_batch)
+                # X_batch = X_batch.T
+                # Y_batch = Y_batch.T
+                sequence_length = sequence_cases.shape[1]
+
+                # Pass all cases in a sequence throuhg the network
+                outputs_train = []
+                losses_train = []
+                for i in range(sequence_length):
+                    X_batch = sequence_cases[:, i, 0, :].T
+                    Y_batch = sequence_cases[:, i, 1, :].T
+                    output = self.forward_pass(X_batch)
+                    outputs_train.append(output)
+                    loss = run_loss_function(
+                        self.loss_function, output, Y_batch)
+                    losses_train.append(loss)
+
+                exit()
+                # Backpropagate once all cases have been forwarded
+                for i in range(sequence_length):
+                    self.backward_pass(output_train, Y_batch)
+
                 loss_train = run_loss_function(
                     self.loss_function, output_train, Y_batch)
 
@@ -315,92 +331,56 @@ class NeuralNetwork:
 
 if __name__ == "__main__":
     learning_rate = 0.1
-    neurons_in_each_layer = [2, 3, 3, 2]
+    neurons_in_each_layer = [3, 3, 3, 3]
+    layer_types = [LayerType.RECURRENT, LayerType.RECURRENT, LayerType.DENSE]
     activation_functions = [
         ActivationFunction.RELU, ActivationFunction.RELU, ActivationFunction.LINEAR]
-    softmax = True
-    loss_function = LossFunction.CROSS_ENTROPY
-    global_weight_regularization_option = None
-    global_weight_regularization_rate = None
+    softmax = False
+    loss_function = LossFunction.MSE
     initial_weight_ranges = "glorot_normal"
     initial_bias_ranges = [0, 0]
     verbose = False
-    nn = NeuralNetwork(learning_rate, neurons_in_each_layer, activation_functions, softmax, loss_function,
-                       global_weight_regularization_option, global_weight_regularization_rate, initial_weight_ranges,
-                       initial_bias_ranges, verbose)
+    nn = NeuralNetwork(learning_rate, neurons_in_each_layer, layer_types, activation_functions,
+                       softmax, loss_function, initial_weight_ranges, initial_bias_ranges, verbose)
 
-    def XOR_data(count):
-        X = np.empty((count, 2))
-        targets = np.empty((count, 2))
+    def create_sequence_data():
+        sequences = []
+        sequences.append(
+            [
+                (np.array([1, 0, 0]), np.array([0, 1, 0])),
+                (np.array([0, 1, 0]), np.array([0, 0, 1])),
+                (np.array([0, 0, 1]), np.array([1, 0, 0])),
+            ]
+        )
+        sequences.append(
+            [
+                (np.array([0, 1, 0]), np.array([1, 0, 0])),
+                (np.array([1, 0, 0]), np.array([0, 0, 1])),
+                (np.array([0, 0, 1]), np.array([0, 1, 0])),
+            ]
+        )
 
-        index = 0
-        # 01 = 0
-        # 10 = 1 # lmao
-        for i in range(count // 4):
-            for j in range(2):
-                # X[index, j] = np.random.uniform(0.0, 0.5)
-                X[index, j] = 0.0
-
-            targets[index, 0] = 0.0
-            targets[index, 1] = 1.0
-            index += 1
-
-        # (1, 1) = 0
-        for i in range(count // 4):
-            for j in range(2):
-                # X[index, j] = np.random.uniform(0.5, 1.0)
-                X[index, j] = 1.0
-
-            targets[index, 0] = 0.0
-            targets[index, 1] = 1.0
-            index += 1
-
-        # (0, 1) = 1
-        for i in range(count // 4):
-            # X[index, 0] = np.random.uniform(0.0, 0.5)
-            # X[index, 1] = np.random.uniform(0.5, 1.0)
-            X[index, 0] = 0.0
-            X[index, 1] = 1.0
-            targets[index, 0] = 1.0
-            targets[index, 1] = 0.0
-            index += 1
-
-        # (1, 0) = 1
-        for i in range(count // 4):
-            # X[index, 0] = np.random.uniform(0.5, 1.0)
-            # X[index, 1] = np.random.uniform(0.0, 0.5)
-            X[index, 0] = 1.0
-            X[index, 1] = 0.0
-            targets[index, 0] = 1.0
-            targets[index, 1] = 0.0
-            index += 1
-
-        shuffle_indexes = np.arange(count)
-        np.random.shuffle(shuffle_indexes)
-        X = X[shuffle_indexes]
-        targets = targets[shuffle_indexes]
-
-        return X, targets
+        return sequences
 
     epochs = 40
-    batch_size = 64
-    X, Y = XOR_data(20000)
+    batch_size = 2
+    sequence_data = create_sequence_data()
 
-    X_train, Y_train, X_val, Y_val, X_test, Y_test = split_dataset(X, Y)
+    # XY_train, XY_val, XY_test = split_dataset(sequence_data)
 
     # print("Outputs:\n", X)
 
     # print("Targets:\n", targets)
 
     train_loss_history, train_accuracy_history, val_loss_history, val_accuracy_history = nn.train(
-        epochs, batch_size, X_train, Y_train, X_val, Y_val)
+        epochs, batch_size, sequence_data, sequence_data, shuffle=False)
 
     plot_loss_and_accuracy(
         train_loss_history, train_accuracy_history, val_loss_history, val_accuracy_history)
 
-    input_check = np.array([[0.0, 0.0], [1.0, 1.0], [1.0, 0.0], [0.0, 1.0]])
+    # input_check = np.array([[0.0, 0.0], [1.0, 1.0], [1.0, 0.0], [0.0, 1.0]])
     prediction = nn.predict(input_check)
     prediction = one_hot_encode(prediction)
-    target_check = np.array([[0.0, 0.0, 1.0, 1.0], [1.0, 1.0, 0.0, 0.0]])
+    # target_check = np.array([[0.0, 0.0, 1.0, 1.0], [1.0, 1.0, 0.0, 0.0]])
     print("Actual prediction\n", prediction)
     print("Desired prediction\n", target_check)

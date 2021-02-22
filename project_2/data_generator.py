@@ -22,31 +22,36 @@ class DataGenerator:
         self.output_dir = pathlib.Path("sequences")
         self.output_dir.mkdir(exist_ok=True)
 
-    def get_sequences(self):
+    def get_sequences(self, shuffle=True):
         """
-        Returns data and targets.
+        Returns cases from the sequences.
+        That is, multiple input-output pairs are returned for each sequence.
         """
+        # print("Fetching cases...")
         class_names = [e.name.lower() for e in Classes]
         files = listdir(self.output_dir)
-        data = []
-        targets = []
+        sequence_cases = []
         for i, f in enumerate(files):
             for i, class_name in enumerate(class_names):
                 if class_name in f:
                     target_number = i
                     break
 
-            target = np.zeros(len(class_names))
-            target[target_number] = 1.0
-
             image = plt.imread(self.output_dir.joinpath(f))
             # Apparently this returns a (M, N, 4) array because it thinks it is a  RGBA image..
             image = image[:, :, 0]
 
-            data.append(image)
-            targets.append(target)
+            cases = []
+            for i in range(image.shape[0] - 1):
+                input_output_pair = (image[i], image[i + 1])
+                cases.append(input_output_pair)
 
-        return np.array(data), np.array(targets)
+            sequence_cases.append(cases)
+
+        if shuffle:
+            np.random.shuffle(sequence_cases)
+
+        return sequence_cases
 
     def random_sample(self, number_of_images=10):
         files = listdir(self.output_dir)
@@ -137,5 +142,5 @@ if __name__ == "__main__":
     args.parse_arguments()
     data_generator = DataGenerator(args)
     data_generator.generate_sequences()
-    # data, targets = data_generator.get_sequences()
+    # cases = data_generator.get_sequences()
     data_generator.random_sample()

@@ -1,29 +1,36 @@
+# Beware of changing these parameters
+training_ratio: 0.7
+validation_ratio: 0.2
+testing_ratio: 0.1
+
+# Change these parameters as you like
+
 # Whether or not to print network information, outputs, loss etc.
 verbose: False
 
 learning_rate: 0.01
-batch_size: 64
+batch_size: 3
 epochs: 3
 
-# List of length 2-12, with values in the interval [1-1000]
-# This means that we can have 0-10 hidden layers
-neurons_in_each_layer: [625, 256, 256, 4]
+# List of neurons in each layer on the format [input, hidden, ..., hidden, output] of
+# length 2-7, with values in the interval [1-1000]
+# This means that we can have 0-5 hidden layers
+neurons_in_each_layer: [10, 20, 20, 10]
+
+# Layer type for each layer
+# For example a network with 2 hidden layers: [recurrent, recurrent, dense]
+layer_types: [recurrent, recurrent, dense]
 
 # Activation function for each layer (except the input layer)
 # Options [sigmoid, tanh, relu, linear]
 # For example a network with 2 hidden layers: [sigmoid, relu, relu]
 activation_functions: [relu, relu, linear]
 
-softmax: True # Whether or not we should include a SoftMax layer at the end
+softmax: False # Whether or not we should include a SoftMax layer at the end
 
 # [MSE, cross_entropy] where MSE is mean-squared error
-loss_function: cross_entropy
-
-# [L1, L2, null]
-global_weight_regularization_option: NULL
-
-# Typically a small fraction
-global_weight_regularization_rate: 0.001
+# Use cross_entropy if softmax is enabled for classification tasks
+loss_function: MSE
 
 # Initial weight ranges for each (non-input) layer,
 # options: [glorot_normal, glorot_uniform, [low, high]]
