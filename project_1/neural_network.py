@@ -166,7 +166,7 @@ class NeuralNetwork:
             num_batches = dataset_size // batch_size
         else:
             # Drop last batch if the dataset is not evenly divisible by the batch size
-            num_batches = int(np.ceil(dataset_size / batch_size))
+            num_batches = int(np.ceil(dataset_size / batch_size)) # TODO .floor() maybe?
 
         indices = list(range(dataset_size))
 
