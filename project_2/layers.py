@@ -142,9 +142,7 @@ class Layer:
         self.verbose = verbose
         self.name = name
 
-        # Cache all activations and inputs because we need it to do backpropagation
-        self.inputs_history = []
-        self.activations_history = []
+        self.init_new_sequence()
 
     def forward_pass(self, X):
         """
@@ -175,19 +173,21 @@ class Layer:
 
         return activations
 
-    def backward_pass(self, R):
+    def backward_pass(self, R, sequence_step, last_sequence):
         """
         Performs backward pass over one layer.
 
         Args
             R: np.ndarray of shape (batch_size, neurons_in_this_layer)
+            TODO
 
         Returns
             np.ndarray of shape (batch_size, neurons_in_previous_layer), where neurons_in_previous_layer is
             the neuron count of the layer to the left (i.e., the input to this layer).
         """
         if self.activation_function == ActivationFunction.SOFTMAX:
-            activations = self.activations.T  # (batch_size, neurons)
+            # (batch_size, neurons_in_this_layer)
+            activations = self.activations_history[sequence_step].T
 
             batch_size = activations.shape[0]
             for b in range(batch_size):
@@ -207,21 +207,45 @@ class Layer:
 
             return R
 
-        activation_gradient = derivative_activation_function(
-            self.activation_function, self.activations).T
-        R *= activation_gradient
+        # (batch_size, neurons_in_this_layer)
+        activation_gradients = derivative_activation_function(
+            self.activation_function, self.activations_history[sequence_step]).T
+        R *= activation_gradients
 
         # Gradients for weights and bias
         batch_size = R.shape[0]
         # Divide by batch_size to get the average gradients over the batch
         # The average works because matrix multiplication sums the gradients
-        gradient_weights = np.matmul(self.inputs, R) / batch_size
+
+        # (neurons_in_previous_layer, batch_size) @ (batch_size, neurons_in_this_layer)
+        gradient_weights = np.matmul(
+            self.inputs_history[sequence_step], R) / batch_size
         gradient_bias = R.sum(axis=0, keepdims=True).T / batch_size
 
-        self.weights -= self.learning_rate * gradient_weights
-        self.bias -= self.learning_rate * gradient_bias
+        if self.gradient_weights is None:
+            self.gradient_weights = gradient_weights
+        else:
+            self.gradient_weights += gradient_weights  # Accumulate the gradients as we go
 
+        if self.gradient_bias is None:
+            self.gradient_bias = gradient_bias
+        else:
+            self.gradient_bias += gradient_bias  # Accumulate the gradients as we go
+
+        if last_sequence:
+            # Update parameters on the last sequence
+            self.weights -= self.learning_rate * self.gradient_weights
+            self.bias -= self.learning_rate * self.gradient_bias
+
+        # (batch_size, neurons_in_this_layer) @ (neurons_in_this_layer, neurons_in_previous_layer)
         return np.matmul(R, self.weights.T)
+
+    def init_new_sequence(self):
+        # Cache all activations and inputs because we need it to do backpropagation
+        self.inputs_history = []
+        self.activations_history = []
+        self.gradient_weights = None
+        self.gradient_bias = None
 
     def __str__(self):
         return "{} neurons with {} as activation function".format(self.neuron_count, self.activation_function)
@@ -243,6 +267,8 @@ class RecurrentLayer(Layer):
         else:
             self.recurrent_weights = init_weights_with_range(
                 initial_weight_ranges[0], initial_weight_ranges[1], neuron_count, neuron_count)
+
+        self.output_jacobian = None
 
     def forward_pass(self, X):
         """
@@ -275,18 +301,95 @@ class RecurrentLayer(Layer):
 
         return activations
 
-    def backward_pass(self, R):
+    def backward_pass(self, R, sequence_step, last_sequence):
         """
         Performs backward pass over one layer.
 
         Args
             R: np.ndarray of shape (batch_size, neurons_in_this_layer)
-
+            sequence_step: int
+            last_sequence: bool
         Returns
             np.ndarray of shape (batch_size, neurons_in_previous_layer), where neurons_in_previous_layer is
             the neuron count of the layer to the left (i.e., the input to this layer).
         """
-        pass
+        batch_size = R.shape[0]
+        # MxM matrix which is fully connected to itself. Thus, M = neurons_in_this_layer
+        # Page 18-20 in the slides
+
+        # Save the output Jacobian as we need it in the recurrent sequence
+        if self.output_jacobian is None:
+            # Treated as a normal dense layer
+            self.output_jacobian = R
+        else:
+            # (batch_size, neurons_in_this_layer)
+            activation_gradients = derivative_activation_function(
+                self.activation_function, self.activations_history[sequence_step]).T
+            # ! Shouldn't we derive the activation function here?
+            # x = self.activations_history[sequence_step].T # ?
+            x = activation_gradients  # ?
+
+            # (batch_size, neurons_in_this_layer, neurons_in_this_layer)
+            diag_matrix = np.empty((batch_size, x.shape[1], x.shape[1]))
+            for batch in range(batch_size):
+                diag_matrix[batch] = np.diag(x[batch])
+
+            # (batch_size, neurons_in_this_layer, neurons_in_this_layer) @ (neurons_in_this_layer, neurons_in_this_layer)
+            recurrent_jacobian = np.matmul(
+                diag_matrix, self.recurrent_weights.T)
+
+            assert recurrent_jacobian.shape == (
+                batch_size, self.neuron_count, self.neuron_count)
+
+            part_2 = np.empty_like(R)
+            for i in range(batch_size):
+                output_jacobian = self.output_jacobian[i]
+                output_jacobian = output_jacobian.reshape(
+                    (1, output_jacobian.shape[0]))
+
+                part_2[i] = np.matmul(output_jacobian, recurrent_jacobian[i])
+
+            # Page 17 in the slides
+            R += part_2
+            self.output_jacobian = R  # (batch_size, neurons_in_this_layer)
+
+        # (batch_size, neurons_in_this_layer)
+        activation_gradients = derivative_activation_function(
+            self.activation_function, self.activations_history[sequence_step]).T
+        R *= activation_gradients
+
+        # Gradients for weights and bias
+
+        # Divide by batch_size to get the average gradients over the batch
+        # The average works because matrix multiplication sums the gradients
+        gradient_weights = np.matmul(
+            self.inputs_history[sequence_step], R) / batch_size
+        gradient_bias = R.sum(axis=0, keepdims=True).T / batch_size
+
+        # TODO may be moved up/down, read up on this (before or after R update)
+        if self.gradient_weights is None:
+            self.gradient_weights = gradient_weights
+        else:
+            self.gradient_weights += gradient_weights  # Accumulate the gradients as we go
+
+        if self.gradient_bias is None:
+            self.gradient_bias = gradient_bias
+        else:
+            self.gradient_bias += gradient_bias  # Accumulate the gradients as we go
+
+        if last_sequence:
+            # Update parameters on the last sequence
+            self.weights -= self.learning_rate * self.gradient_weights
+            self.bias -= self.learning_rate * self.gradient_bias
+
+        # assert self.output_jacobian.shape == (batch_size, self.neurons_in_previous_layer), "Expected {}, got {}".format(
+        #     (batch_size, self.neurons_in_previous_layer), self.output_jacobian.shape)
+
+        return np.matmul(R, self.weights.T)
+
+    def init_new_sequence(self):
+        super().init_new_sequence()
+        self.output_jacobian = None
 
 
 if __name__ == "__main__":

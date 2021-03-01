@@ -9,7 +9,7 @@ testing_ratio: 0.1
 verbose: False
 
 learning_rate: 0.01
-batch_size: 3
+batch_size: 32
 epochs: 3
 
 # List of neurons in each layer on the format [input, hidden, ..., hidden, output] of
