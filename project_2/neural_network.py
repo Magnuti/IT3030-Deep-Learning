@@ -42,7 +42,7 @@ def MSE(outputs: np.ndarray, targets: np.ndarray) -> float:
     """
     assert outputs.shape == targets.shape
 
-    return np.average(np.average((outputs - targets)**2, axis=0))
+    return np.mean((outputs - targets)**2)
 
 
 def MSE_derivative(outputs, targets):
@@ -56,7 +56,7 @@ def MSE_derivative(outputs, targets):
 
     number_of_outputs = outputs.shape[0]
     # ? negative or positive return? Maybe add a minus sign before retur
-    return 2.0 / number_of_outputs * (outputs - targets)
+    return (2.0 / number_of_outputs) * (outputs - targets)
 
 
 def run_loss_function(loss_function, outputs, targets):
@@ -162,6 +162,7 @@ class NeuralNetwork:
 
         Args:
             sequence_cases: list(list(tuple(np.ndarray, np.ndarray)))
+                (batch_size, sequence length, 2, case length)
                 list of sequence-cases, where each cases is a new list that holds several tuples of input-output pairs
             shuffle (bool): To shuffle the dataset between each epoch or not.
         """
@@ -209,7 +210,8 @@ class NeuralNetwork:
 
         return outputs
 
-    def backward_pass(self, outputs, targets, sequence_step, last_sequence):
+    def backward_pass(self, R, sequence_step, last_sequence):
+        # def backward_pass(self, outputs, targets, sequence_step, last_sequence):
         """
         Performs backward pass over a mini-batch.
 
@@ -219,10 +221,10 @@ class NeuralNetwork:
             sequence_step: int
             last_sequence: bool
         """
-        assert outputs.shape == targets.shape
+        # assert outputs.shape == targets.shape
 
         # Jacobian loss
-        R = derivative_loss_function(self.loss_function, outputs, targets).T
+        # R = derivative_loss_function(self.loss_function, outputs, targets).T
         for i, layer in reversed(list(enumerate(self.layers))):
             # Skip input layer
             if layer is not None:
@@ -273,16 +275,27 @@ class NeuralNetwork:
                     outputs_train.append(output)
                     loss = run_loss_function(
                         self.loss_function, output, Y_batch)
+                    # print(loss)
                     losses_train.append(loss)
 
                 loss_train = sum(losses_train)
                 train_loss_history.append(loss)
 
+                R = None
                 # Backpropagate once all cases have been forwarded
                 for i in range(sequence_length):
                     Y_batch = sequence_cases[:, i, 1, :].T
-                    self.backward_pass(
-                        outputs_train[i], Y_batch, i, i == sequence_length - 1)
+                    if R is None:
+                        R = derivative_loss_function(
+                            self.loss_function, outputs_train[i], Y_batch).T
+                    else:
+                        R += derivative_loss_function(
+                            self.loss_function, outputs_train[i], Y_batch).T
+
+                for i in range(sequence_length):
+                    # ! Tried to use total loss derivatives
+                    # TODO try with the normal way as well
+                    self.backward_pass(R, i, i == sequence_length - 1)
 
                 # loss_train = run_loss_function(
                 #     self.loss_function, output_train, Y_batch)
@@ -291,32 +304,47 @@ class NeuralNetwork:
                 # if iteration % iterations_per_validation == 0:
                 # output_val = self.forward_pass(X_val)
 
+                # Must whipe caches before val
+                self.reset_layers()
+                XY_val = np.array(XY_val)
+                losses_val = []
+                for i in range(sequence_length):
+                    X_batch = XY_val[:, i, 0, :].T
+                    Y_batch = XY_val[:, i, 1, :].T
+                    output = self.forward_pass(X_batch)
+                    loss = run_loss_function(
+                        self.loss_function, output, Y_batch)
+                    # print(loss)
+                    losses_val.append(loss)
+
+                loss_val = sum(losses_val)
+
                 # loss_val = run_loss_function(
                 #     self.loss_function, output_val, Y_val)
                 # accuracy_train = []
                 # for i in range(sequence_length):
-                #     Y_batch = sequence_cases[:, i, 1, :].T
-                #     accuracy_train.append(accuracy(outputs_train[i], Y_batch))
+                # Y_batch = sequence_cases[:, i, 1, :].T
+                # accuracy_train.append(accuracy(outputs_train[i], Y_batch))
 
                 # accuracy_train = np.array(accuracy_train).mean()
 
                 # accuracy_val = accuracy(output_val, Y_val)
 
-                # val_loss_history.append(loss_val)
+                val_loss_history.append(loss_val)
                 # train_accuracy_history.append(accuracy_train)
                 # val_accuracy_history.append(accuracy_val)
 
-                print("Epoch: {}, iteration: {}, training loss {}:".format(
-                    epoch, iteration, loss_train))
+                # print("Epoch: {}, iteration: {}, training loss {}:".format(
+                #     epoch, iteration, loss_train))
 
-                # print("Epoch: {}, iteration: {}, training loss: {}, validation loss {}:".format(
-                #     epoch, iteration, loss_train, loss_val))
+                print("Epoch: {}, iteration: {}, training loss: {}, validation loss {}:".format(
+                    epoch, iteration, loss_train, loss_val))
 
                 iteration += 1
-                # if iteration >= 2:  # !
+                # if iteration >= 3:  # !
                 #     exit()
 
-        self.reset_layers()
+                self.reset_layers()
 
         return train_loss_history, train_accuracy_history, val_loss_history, val_accuracy_history
 
