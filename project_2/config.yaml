@@ -8,7 +8,7 @@ testing_ratio: 0.1
 # Whether or not to print network information, outputs, loss etc.
 verbose: False
 
-learning_rate: 0.0001
+learning_rate: 0.001
 batch_size: 32
 epochs: 10
 
