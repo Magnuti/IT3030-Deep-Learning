@@ -42,6 +42,25 @@ def one_hot_encode(X):
     return output
 
 
+def plot_loss(train_loss_history, val_loss_history):
+    plt.subplots(1, 2)
+    plt.subplot(1, 2, 1)
+    plt.plot(np.arange(len(train_loss_history)), train_loss_history,
+             label="Training loss")
+    plt.legend()
+    plt.xlabel("Iterations (number of batches)")
+    plt.ylabel("Loss")
+
+    plt.subplot(1, 2, 2)
+    plt.plot(np.arange(len(val_loss_history)),
+             val_loss_history, label="Validation loss")
+    plt.legend()
+    plt.xlabel("Iterations (number of batches)")
+    plt.ylabel("Loss")
+
+    plt.show()
+
+
 def plot_loss_and_accuracy(train_loss_history, train_accuracy_history, val_loss_history, val_accuracy_history):
     # plt.ylim([0.2, .6])
     # utils.plot_loss(train_history["loss"],

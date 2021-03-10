@@ -269,8 +269,8 @@ class RecurrentLayer(Layer):
                 initial_weight_ranges[0], initial_weight_ranges[1], neuron_count, neuron_count)
 
         # One bias per neuron, column vector
-        self.recurrent_bias = np.random.uniform(
-            initial_bias_ranges[0], initial_bias_ranges[1], size=(neuron_count, 1))
+        # self.recurrent_bias = np.random.uniform(
+        #     initial_bias_ranges[0], initial_bias_ranges[1], size=(neuron_count, 1))
 
         self.init_new_sequence()
 
@@ -292,8 +292,10 @@ class RecurrentLayer(Layer):
 
         # Recurrent input (skip for first case in the sequence)
         if self.activations_history:
-            weighted_inputs += (np.matmul(self.recurrent_weights.T,
-                                          self.activations_history[-1]) + self.recurrent_bias)
+            # weighted_inputs += (np.matmul(self.recurrent_weights.T,
+            #                               self.activations_history[-1]) + self.recurrent_bias)
+            weighted_inputs += np.matmul(self.recurrent_weights.T,
+                                         self.activations_history[-1])
 
         # activations has shape (neurons, batch_size)
         activations = run_activation_function(
@@ -359,12 +361,12 @@ class RecurrentLayer(Layer):
 
             # Page 17 in the slides
             # (batch_size, neurons_in_this_layer)
+            # Test this: self.output_jacobian = received_jacobian * activation_gradients + to_add_jacobian
+            # self.output_jacobian = received_jacobian * \
+            #     activation_gradients + to_add_jacobian
             self.output_jacobian = received_jacobian + to_add_jacobian
 
         # Gradients for weights and bias
-
-        # if not last_sequence:
-        #     recurrent_gradient_weights = np.matmul(self.activations_history[sequence_step - 1], )
 
         # Build the Delta Jacobian
         # (batch_size, neurons_in_this_layer, neurons_in_this_layer)
@@ -380,9 +382,6 @@ class RecurrentLayer(Layer):
             delta_jacobian[batch] = np.matmul(
                 diag_output_jacobian[batch], activation_gradients[batch])
 
-        # TODO look over this comment
-        # ! Allright so we had to switch order from (A.T, B.T) to (BA).T, it may be more readable to not do this.
-
         # Divide by batch_size to get the average gradients over the batch
         # The average works because matrix multiplication sums the gradients
 
@@ -394,26 +393,25 @@ class RecurrentLayer(Layer):
         gradient_bias = delta_jacobian.sum(
             axis=0, keepdims=True).T / batch_size
 
-        if not last_sequence:
-            # (neurons_in_this_layer, batch_size) @ (batch_size, neurons_in_this_layer)
-            recurrent_gradient_weights = np.matmul(
-                self.activations_history[sequence_step - 1], delta_jacobian,) / batch_size
-            recurrent_gradient_bias = gradient_bias  # ? I think
-
         # Accumulate the gradients as we go
         self.gradient_weights += gradient_weights
         self.gradient_bias += gradient_bias
 
         if not last_sequence:
+            # (neurons_in_this_layer, batch_size) @ (batch_size, neurons_in_this_layer)
+            recurrent_gradient_weights = np.matmul(
+                self.activations_history[sequence_step - 1], delta_jacobian) / batch_size
+            # recurrent_gradient_bias = gradient_bias  # ? I think
+
+            # Accumulate the gradients as we go
             self.recurrent_gradient_weights += recurrent_gradient_weights
-            self.recurrent_gradient_bias += recurrent_gradient_bias
+            # self.recurrent_gradient_bias += recurrent_gradient_bias
 
         if last_sequence:
             # Update parameters on the last sequence
-            self.recurrent_gradient_weights -= self.learning_rate * \
-                self.recurrent_gradient_weights
+            self.recurrent_weights -= self.learning_rate * self.recurrent_gradient_weights
             self.weights -= self.learning_rate * self.gradient_weights
-            self.recurrent_bias -= self.learning_rate * self.recurrent_bias
+            # self.recurrent_bias -= self.learning_rate * self.recurrent_bias
             self.bias -= self.learning_rate * self.gradient_bias
 
         # (batch_size, neurons_in_this_layer) @(neurons_in_this_layer, neurons_in_previous_layer)
@@ -424,7 +422,7 @@ class RecurrentLayer(Layer):
         self.output_jacobian = None
         self.recurrent_gradient_weights = np.zeros(
             (self.neuron_count, self.neuron_count))
-        self.recurrent_gradient_bias = np.zeros((self.neuron_count, 1))
+        # self.recurrent_gradient_bias = np.zeros((self.neuron_count, 1))
 
 
 if __name__ == "__main__":

@@ -55,7 +55,6 @@ def MSE_derivative(outputs, targets):
     """
 
     number_of_outputs = outputs.shape[0]
-    # ? negative or positive return? Maybe add a minus sign before retur
     return (2.0 / number_of_outputs) * (outputs - targets)
 
 
@@ -77,28 +76,29 @@ def derivative_loss_function(loss_function, outputs, targets):
         raise NotImplementedError()
 
 
-# Only applicable for classification
-# def accuracy(outputs, targets):
-#     """
-#     Calculates the accuracy (i.e., correct predictions / total predictions).
+def accuracy(outputs, targets):
+    """
+    Calculates the accuracy (i.e., correct predictions / total predictions) for
+    a regression task, where [0, 0.5] = 0 and (0.5, 1] = 1
 
-#     Args:
-#         outputs: np.ndarray of shape (number_of_outputs, batch_size)
-#         targets: same dimension as outputs
-#     Return
-#         accuracy: float
-#     """
-#     assert outputs.shape == targets.shape, "Shape was {}, {}".format(
-#         outputs.shape, targets.shape)
+    Args:
+        outputs: np.ndarray of shape (number_of_outputs, batch_size)
+        targets: same dimension as outputs
+    Return
+        accuracy: float
+    """
+    assert outputs.shape == targets.shape, "Shape was {}, {}".format(
+        outputs.shape, targets.shape)
 
-#     outputs = one_hot_encode(outputs)
-#     dataset_size = outputs.shape[1]
-#     correct_predictions = 0
-#     for i in range(dataset_size):
-#         if np.all(np.equal(outputs[:, i], targets[:, i])):
-#             correct_predictions += 1
+    outputs[outputs <= 0.5] = 0
+    outputs[outputs > 0.5] = 1
+    dataset_size = outputs.shape[1]
+    correct_predictions = 0
+    for i in range(dataset_size):
+        if np.all(np.equal(outputs[:, i], targets[:, i])):
+            correct_predictions += 1
 
-#     return correct_predictions / dataset_size
+    return correct_predictions / dataset_size
 
 
 class NeuralNetwork:
@@ -165,6 +165,7 @@ class NeuralNetwork:
                 (batch_size, sequence length, 2, case length)
                 list of sequence-cases, where each cases is a new list that holds several tuples of input-output pairs
             shuffle (bool): To shuffle the dataset between each epoch or not.
+        Returns: Generator with np.ndarray of the same shape as sequence_cases
         """
         dataset_size = len(sequence_cases)
         if dataset_size % batch_size == 0:
@@ -260,27 +261,37 @@ class NeuralNetwork:
             train_loader = self.batch_loader(
                 XY_train, batch_size, shuffle=shuffle)
             for sequence_cases in iter(train_loader):
-                # Transpose X and Y because we want them as column vectors
-                # X_batch = X_batch.T
-                # Y_batch = Y_batch.T
+                # (batch_size, sequence length, 2, case length)
+
                 sequence_length = sequence_cases.shape[1]
 
-                # Pass all cases in a sequence throuhg the network
+                # Pass all cases in a sequence through the network
                 outputs_train = []
                 losses_train = []
+                accuracies_train = []
                 for i in range(sequence_length):
+                    # Transpose X and Y because we want them as column vectors
+                    # (sequence length, batch_size)
                     X_batch = sequence_cases[:, i, 0, :].T
                     Y_batch = sequence_cases[:, i, 1, :].T
                     output = self.forward_pass(X_batch)
                     outputs_train.append(output)
-                    loss = run_loss_function(
-                        self.loss_function, output, Y_batch)
-                    # print(loss)
-                    losses_train.append(loss)
+                    losses_train.append(run_loss_function(
+                        self.loss_function, output, Y_batch))
+                    accuracies_train.append(accuracy(output, Y_batch))
 
                 loss_train = sum(losses_train)
-                train_loss_history.append(loss)
+                train_loss_history.append(loss_train)
+                # accuracy_train = np.mean(accuracies_train)
+                # train_accuracy_history.append(accuracy_train)
 
+                # for i in range(sequence_length):
+                #     # targets of shape (sequence length, batch_size)
+                #     Y_batch = sequence_cases[:, i, 1, :].T
+                #     self.backward_pass(
+                #         outputs_train[i], Y_batch, i, i == sequence_length - 1)
+
+                # Backpropagation
                 R = None
                 # Backpropagate once all cases have been forwarded
                 for i in range(sequence_length):
@@ -293,21 +304,13 @@ class NeuralNetwork:
                             self.loss_function, outputs_train[i], Y_batch).T
 
                 for i in range(sequence_length):
-                    # ! Tried to use total loss derivatives
-                    # TODO try with the normal way as well
                     self.backward_pass(R, i, i == sequence_length - 1)
-
-                # loss_train = run_loss_function(
-                #     self.loss_function, output_train, Y_batch)
-
-                # Validation step at every iteration
-                # if iteration % iterations_per_validation == 0:
-                # output_val = self.forward_pass(X_val)
 
                 # Must whipe caches before val
                 self.reset_layers()
                 XY_val = np.array(XY_val)
                 losses_val = []
+                # accuracies_val = []
                 for i in range(sequence_length):
                     X_batch = XY_val[:, i, 0, :].T
                     Y_batch = XY_val[:, i, 1, :].T
@@ -316,23 +319,12 @@ class NeuralNetwork:
                         self.loss_function, output, Y_batch)
                     # print(loss)
                     losses_val.append(loss)
+                    # accuracies_val.append(accuracy(output, Y_batch))
 
                 loss_val = sum(losses_val)
-
-                # loss_val = run_loss_function(
-                #     self.loss_function, output_val, Y_val)
-                # accuracy_train = []
-                # for i in range(sequence_length):
-                # Y_batch = sequence_cases[:, i, 1, :].T
-                # accuracy_train.append(accuracy(outputs_train[i], Y_batch))
-
-                # accuracy_train = np.array(accuracy_train).mean()
-
-                # accuracy_val = accuracy(output_val, Y_val)
-
                 val_loss_history.append(loss_val)
-                # train_accuracy_history.append(accuracy_train)
-                # val_accuracy_history.append(accuracy_val)
+                # accuracy_val = np.mean(accuracies_val)
+                # val_accuracy_history.append(accuracy_train)
 
                 # print("Epoch: {}, iteration: {}, training loss {}:".format(
                 #     epoch, iteration, loss_train))
@@ -355,6 +347,7 @@ class NeuralNetwork:
 
         Args
             XY_test: list(list(tuple(np.ndarray, np.ndarray)))
+                (batch_size, sequence length, 2, case length)
                 list of sequence-cases, where each cases is a new list that holds several tuples of input-output pairs
         Return
             accuracy: float
@@ -372,24 +365,38 @@ class NeuralNetwork:
 
         return loss
 
-    def predict(self, X, one_hot=True):
-        # TODO
-        raise NotImplementedError()
+    def predict(self, XY, prediction_size):
         """
         Feeds X into the model and returns the output.
 
         Args
-            X: np.ndarray of shape (batch_size, input_size)
-            one_hot: bool, whether the output should be one-hot encoded.
-
+            XY: np.ndarray of shape (batch_size, sequence length, 2, case length)
+                list of sequence-cases, where each cases is a new list that holds several tuples of input-output pairs
+            prediction_size: int
+                How many cases to predict into the future
         Return
             np.ndarray of shape (batch_size, output_size)
         """
-        # self.reset_layers()
-        output = self.forward_pass(X.T)
-        if one_hot:
-            output = one_hot_encode(output)
-        return output.T
+        sequence_length = XY.shape[1]
+        loss = 0
+        for i in range(sequence_length):
+            X_batch = XY[:, i, 0, :].T
+            Y_batch = XY[:, i, 1, :].T
+            output = self.forward_pass(X_batch)
+
+        # (prediction_size, case length, batch_size)
+        XY_predictions = np.empty((prediction_size, XY.shape[3], XY.shape[0]))
+        XY_predictions[0] = output
+        for i in range(prediction_size):
+            X_batch = XY_predictions[i]
+            output = self.forward_pass(X_batch)
+            if i < prediction_size - 1:
+                XY_predictions[i + 1] = output
+
+        XY_predictions[XY_predictions <= 0.5] = 0.0
+        XY_predictions[XY_predictions > 0.5] = 1.0
+        self.reset_layers()
+        return XY_predictions
 
 
 if __name__ == "__main__":
