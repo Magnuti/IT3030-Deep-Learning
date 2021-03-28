@@ -53,6 +53,7 @@ if __name__ == "__main__":
     print("x_test shape:", x_test.shape)
     print("y_test shape:", y_test.shape)
 
+    # Split data into labelled and unlabelled
     train_split_index = int(x_train.shape[0] * arguments.split_ratio)
     x_train_labelled = x_train[:train_split_index]
     x_train_unlabelled = x_train[train_split_index:]
@@ -78,11 +79,31 @@ if __name__ == "__main__":
     # print(y_test_unlabelled.shape)
 
     autoencoder = AutoEncoder(arguments)
-    # autoencoder.train(x_train_unlabelled)
+    # history_dict = autoencoder.train(x_train_unlabelled, x_test_unlabelled)
     # autoencoder.save_models()
     autoencoder.load_models()
+    history_dict = autoencoder.history_dict
 
-    # Display images
+    # Plot accuracy and loss
+    plt.figure(figsize=(12, 6))
+    plt.subplot(1, 2, 1)
+    plt.title('Model accuracy')
+    plt.plot(history_dict['accuracy'])
+    plt.plot(history_dict['val_accuracy'])
+    plt.ylabel('Accuracy')
+    plt.xlabel('Epoch')
+    plt.legend(['Train', 'Validaton'])
+
+    plt.subplot(1, 2, 2)
+    plt.title('Loss')
+    plt.plot(history_dict['loss'])
+    plt.plot(history_dict['val_loss'])
+    plt.ylabel('Loss')
+    plt.xlabel('Epoch')
+    plt.legend(['Train', 'Validation'])
+    plt.show()
+
+    # Display images (from https://www.tensorflow.org/tutorials/generative/autoencoder)
     encoded_imgs = autoencoder.encoder(x_test).numpy()
     decoded_imgs = autoencoder.decoder(encoded_imgs).numpy()
 
@@ -92,18 +113,18 @@ if __name__ == "__main__":
     n = 10
     plt.figure(figsize=(20, 4))
     for i in range(n):
-        # display original
+        # Display original
         ax = plt.subplot(2, n, i + 1)
         plt.imshow(x_test[i])
-        plt.title("original")
+        plt.title("Original")
         plt.gray()
         ax.get_xaxis().set_visible(False)
         ax.get_yaxis().set_visible(False)
 
-        # display reconstruction
+        # Display reconstruction
         ax = plt.subplot(2, n, i + 1 + n)
         plt.imshow(decoded_imgs[i])
-        plt.title("reconstructed")
+        plt.title("Reconstructed")
         plt.gray()
         ax.get_xaxis().set_visible(False)
         ax.get_yaxis().set_visible(False)
