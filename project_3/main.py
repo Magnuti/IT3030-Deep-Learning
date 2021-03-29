@@ -1,6 +1,7 @@
 from tensorflow import keras
 import numpy as np
 import matplotlib.pyplot as plt
+from sklearn.manifold import TSNE
 
 from config_parser import Arguments
 from constants import Dataset
@@ -84,48 +85,77 @@ if __name__ == "__main__":
     autoencoder.load_models()
     history_dict = autoencoder.history_dict
 
-    # Plot accuracy and loss
-    plt.figure(figsize=(12, 6))
-    plt.subplot(1, 2, 1)
-    plt.title('Model accuracy')
-    plt.plot(history_dict['accuracy'])
-    plt.plot(history_dict['val_accuracy'])
-    plt.ylabel('Accuracy')
-    plt.xlabel('Epoch')
-    plt.legend(['Train', 'Validaton'])
+    def plot_loss_and_accuracy():
+        # Plot accuracy and loss
+        plt.figure(figsize=(12, 6))
+        plt.subplot(1, 2, 1)
+        plt.title('Model accuracy')
+        plt.plot(history_dict['accuracy'])
+        plt.plot(history_dict['val_accuracy'])
+        plt.ylabel('Accuracy')
+        plt.xlabel('Epoch')
+        plt.legend(['Train', 'Validaton'])
 
-    plt.subplot(1, 2, 2)
-    plt.title('Loss')
-    plt.plot(history_dict['loss'])
-    plt.plot(history_dict['val_loss'])
-    plt.ylabel('Loss')
-    plt.xlabel('Epoch')
-    plt.legend(['Train', 'Validation'])
-    plt.show()
+        plt.subplot(1, 2, 2)
+        plt.title('Loss')
+        plt.plot(history_dict['loss'])
+        plt.plot(history_dict['val_loss'])
+        plt.ylabel('Loss')
+        plt.xlabel('Epoch')
+        plt.legend(['Train', 'Validation'])
+        plt.show()
 
     # Display images (from https://www.tensorflow.org/tutorials/generative/autoencoder)
     encoded_imgs = autoencoder.encoder(x_test).numpy()
     decoded_imgs = autoencoder.decoder(encoded_imgs).numpy()
 
-    decoded_imgs = np.squeeze(decoded_imgs)  # Removes last 1 dimension
-    x_test = np.squeeze(x_test)  # Removes last 1 dimension
+    def plot_autoencoder_reconstructions():
+        decoded_imgs = np.squeeze(decoded_imgs)  # Removes last 1 dimension
+        x_test = np.squeeze(x_test)  # Removes last 1 dimension
 
-    n = 10
-    plt.figure(figsize=(20, 4))
-    for i in range(n):
-        # Display original
-        ax = plt.subplot(2, n, i + 1)
-        plt.imshow(x_test[i])
-        plt.title("Original")
-        plt.gray()
-        ax.get_xaxis().set_visible(False)
-        ax.get_yaxis().set_visible(False)
+        n = 10
+        plt.figure(figsize=(20, 4))
+        for i in range(n):
+            # Display original
+            ax = plt.subplot(2, n, i + 1)
+            plt.imshow(x_test[i])
+            plt.title("Original")
+            plt.gray()
+            ax.get_xaxis().set_visible(False)
+            ax.get_yaxis().set_visible(False)
 
-        # Display reconstruction
-        ax = plt.subplot(2, n, i + 1 + n)
-        plt.imshow(decoded_imgs[i])
-        plt.title("Reconstructed")
-        plt.gray()
-        ax.get_xaxis().set_visible(False)
-        ax.get_yaxis().set_visible(False)
-    plt.show()
+            # Display reconstruction
+            ax = plt.subplot(2, n, i + 1 + n)
+            plt.imshow(decoded_imgs[i])
+            plt.title("Reconstructed")
+            plt.gray()
+            ax.get_xaxis().set_visible(False)
+            ax.get_yaxis().set_visible(False)
+        plt.show()
+
+    def get_cmap(n, name='hsv'):
+        # https://stackoverflow.com/questions/14720331/how-to-generate-random-colors-in-matplotlib
+        '''Returns a function that maps each index in 0, 1, ..., n-1 to a distinct 
+        RGB color; the keyword argument name must be a standard mpl colormap name.'''
+        return plt.cm.get_cmap(name, n + 1)
+
+    def plot_latent_vector_clusters(n_vectors):
+        indices = np.random.choice(
+            encoded_imgs.shape[0], n_vectors, replace=False)
+        X_inputs = encoded_imgs[indices]
+        classes = y_test[indices]
+
+        # Transforms X_inputs of shape (n_vectors, latent_vector_size) into (n_vectors, 2)
+        X_embedded = TSNE(n_components=2).fit_transform(X_inputs)
+
+        # One color for each class
+        cmap = get_cmap(classes.shape[1])
+        colors = []
+        for i in range(classes.shape[0]):
+            num = np.argmax(classes[i])
+            colors.append(cmap(num))
+
+        plt.scatter(X_embedded[:, 0], X_embedded[:, 1], c=colors)
+        plt.show()
+
+    plot_latent_vector_clusters(250)
