@@ -8,6 +8,7 @@ from config_parser import Arguments
 from constants import Dataset
 from autoencoder import AutoEncoder
 from classifier import Classifier
+from supervised_classifier import SupervisedClassifier
 
 if __name__ == "__main__":
     arguments = Arguments()
@@ -15,6 +16,9 @@ if __name__ == "__main__":
 
     save_path = pathlib.Path("saves")
     save_path.mkdir(exist_ok=True)
+
+    image_path = pathlib.Path("images")
+    image_path.mkdir(exist_ok=True)
 
     if arguments.dataset == Dataset.MNIST:
         # From https://keras.io/examples/vision/mnist_convnet/
@@ -106,6 +110,14 @@ if __name__ == "__main__":
     classifer.load_models()
     classifier_history_dict = classifer.history_dict
 
+    supervised_classifier = SupervisedClassifier(
+        arguments, num_classes, save_path)
+    # supervised_classifier_history_dict = supervised_classifier.train(
+    #     x_train_labelled, y_train_labelled)
+    # supervised_classifier.save_models()
+    supervised_classifier.load_models()
+    supervised_classifier_history_dict = supervised_classifier.history_dict
+
     latent_vectors_after_classifier_training = classifer.encoder(
         x_test).numpy()
 
@@ -114,20 +126,27 @@ if __name__ == "__main__":
         # Plot accuracy and loss
         plt.figure(figsize=(12, 6))
         plt.subplot(1, 2, 1)
-        plt.title('Model accuracy')
-        plt.plot(autoencoder_history_dict['accuracy'])
-        plt.plot(autoencoder_history_dict['val_accuracy'])
-        plt.ylabel('Accuracy')
-        plt.xlabel('Epoch')
-        plt.legend(['Train', 'Validaton'])
-
-        plt.subplot(1, 2, 2)
-        plt.title('Loss')
+        plt.title('Autoencoder loss')
         plt.plot(autoencoder_history_dict['loss'])
         plt.plot(autoencoder_history_dict['val_loss'])
         plt.ylabel('Loss')
         plt.xlabel('Epoch')
-        plt.legend(['Train', 'Validation'])
+        plt.legend(['Train', 'Validaton'])
+
+        plt.subplot(1, 2, 2)
+        plt.title('Comparative Classifier Accuracy')
+        plt.plot(classifier_history_dict['accuracy'])
+        plt.plot(classifier_history_dict['val_accuracy'])
+        plt.plot(
+            supervised_classifier_history_dict['accuracy'])
+        plt.plot(
+            supervised_classifier_history_dict['val_accuracy'])
+        plt.ylabel('Accuracy')
+        plt.xlabel('Epoch')
+        plt.legend(['Semi training accuracy', 'Semi val. accuracy',
+                    "Supervised training accuracy", "Supervised val. accuracy"])
+
+        plt.savefig(image_path.joinpath("loss_and_accuracy.png"))
         plt.show()
 
     def plot_autoencoder_reconstructions(x_test):
@@ -156,6 +175,8 @@ if __name__ == "__main__":
             plt.gray()
             ax.get_xaxis().set_visible(False)
             ax.get_yaxis().set_visible(False)
+
+        plt.savefig(image_path.joinpath("autoencoder_reconstructions.png"))
         plt.show()
 
     def get_cmap(n, name='hsv'):
@@ -208,8 +229,11 @@ if __name__ == "__main__":
         plt.title("After classifier training")
         plt.scatter(
             X_embedded_classifier_training[:, 0], X_embedded_classifier_training[:, 1], c=colors)
+
+        plt.savefig(image_path.joinpath("latent_vector_clusters.png"))
         plt.show()
 
+    plot_loss_and_accuracy()
     plot_autoencoder_reconstructions(x_test)
     plot_latent_vector_clusters(250, latent_vectors_before_training,
                                 latent_vectors_after_autoencoder_training, latent_vectors_after_classifier_training, y_test)
