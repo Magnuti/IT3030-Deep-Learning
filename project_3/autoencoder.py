@@ -19,18 +19,15 @@ class AutoEncoder:
             decoded = self.decoder(encoded)
             return decoded
 
-    def __init__(self, args):
+    def __init__(self, args, save_path):
         super().__init__()
         self.args = args
-
-        self.save_path = pathlib.Path("saves")
+        self.save_path = save_path.joinpath("autoencoder")
         self.save_path.mkdir(exist_ok=True)
 
         self.history_dict = dict()
 
         self.build_models()
-        self.autoencoder_model = self.AutoEncoderModel(
-            self.encoder, self.decoder)
 
     def build_models(self):
         if self.args.dataset == Dataset.MNIST:
@@ -81,6 +78,9 @@ class AutoEncoder:
 
         self.decoder.summary()
 
+        self.autoencoder_model = self.AutoEncoderModel(
+            self.encoder, self.decoder)
+
     def train(self, x_train, x_test):
         # TODO map constants to keras stuff
         # self.compile(loss="categorical_crossentropy",
@@ -99,7 +99,8 @@ class AutoEncoder:
     def save_models(self):
         self.encoder.save(self.save_path.joinpath("encoder"))
         self.decoder.save(self.save_path.joinpath("decoder"))
-        np.save(self.save_path.joinpath("history_dict.npy"), self.history_dict)
+        np.save(self.save_path.joinpath(
+            "autoencoder_history_dict.npy"), self.history_dict)
 
     def load_models(self):
         self.encoder = keras.models.load_model(
@@ -107,7 +108,10 @@ class AutoEncoder:
         self.decoder = keras.models.load_model(
             self.save_path.joinpath("decoder"))
         self.history_dict = np.load(self.save_path.joinpath(
-            "history_dict.npy"), allow_pickle=True).item()
+            "autoencoder_history_dict.npy"), allow_pickle=True).item()
+
+        self.autoencoder_model = self.AutoEncoderModel(
+            self.encoder, self.decoder)
 
     # def evaluate(self, x_test, y_test):
     #     score = self.model.evaluate(x_test, y_test, verbose=0)

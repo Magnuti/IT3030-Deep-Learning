@@ -2,14 +2,19 @@ from tensorflow import keras
 import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.manifold import TSNE
+import pathlib
 
 from config_parser import Arguments
 from constants import Dataset
 from autoencoder import AutoEncoder
+from classifier import Classifier
 
 if __name__ == "__main__":
     arguments = Arguments()
     arguments.parse_arguments()
+
+    save_path = pathlib.Path("saves")
+    save_path.mkdir(exist_ok=True)
 
     if arguments.dataset == Dataset.MNIST:
         # From https://keras.io/examples/vision/mnist_convnet/
@@ -79,37 +84,57 @@ if __name__ == "__main__":
     # print(y_test_labelled.shape)
     # print(y_test_unlabelled.shape)
 
-    autoencoder = AutoEncoder(arguments)
-    # history_dict = autoencoder.train(x_train_unlabelled, x_test_unlabelled)
+    # TODO load/save depening on if the folder exists
+    autoencoder = AutoEncoder(arguments, save_path)
+
+    latent_vectors_before_training = autoencoder.encoder(x_test).numpy()
+
+    # autoencoder_history_dict = autoencoder.train(
+    #     x_train_unlabelled, x_test_unlabelled)
     # autoencoder.save_models()
     autoencoder.load_models()
-    history_dict = autoencoder.history_dict
+    autoencoder_history_dict = autoencoder.history_dict
+
+    latent_vectors_after_autoencoder_training = autoencoder.encoder(
+        x_test).numpy()
+
+    classifer = Classifier(arguments, num_classes,
+                           autoencoder.encoder, save_path)
+    # classifier_history_dict = classifer.train(
+    #     x_train_labelled, y_train_labelled)
+    # classifer.save_models()
+    classifer.load_models()
+    classifier_history_dict = classifer.history_dict
+
+    latent_vectors_after_classifier_training = classifer.encoder(
+        x_test).numpy()
 
     def plot_loss_and_accuracy():
+        # TODO separate loss and accuracy according to spec
         # Plot accuracy and loss
         plt.figure(figsize=(12, 6))
         plt.subplot(1, 2, 1)
         plt.title('Model accuracy')
-        plt.plot(history_dict['accuracy'])
-        plt.plot(history_dict['val_accuracy'])
+        plt.plot(autoencoder_history_dict['accuracy'])
+        plt.plot(autoencoder_history_dict['val_accuracy'])
         plt.ylabel('Accuracy')
         plt.xlabel('Epoch')
         plt.legend(['Train', 'Validaton'])
 
         plt.subplot(1, 2, 2)
         plt.title('Loss')
-        plt.plot(history_dict['loss'])
-        plt.plot(history_dict['val_loss'])
+        plt.plot(autoencoder_history_dict['loss'])
+        plt.plot(autoencoder_history_dict['val_loss'])
         plt.ylabel('Loss')
         plt.xlabel('Epoch')
         plt.legend(['Train', 'Validation'])
         plt.show()
 
-    # Display images (from https://www.tensorflow.org/tutorials/generative/autoencoder)
-    encoded_imgs = autoencoder.encoder(x_test).numpy()
-    decoded_imgs = autoencoder.decoder(encoded_imgs).numpy()
+    def plot_autoencoder_reconstructions(x_test):
+        # Display images (from https://www.tensorflow.org/tutorials/generative/autoencoder)
+        latent_vectors = autoencoder.encoder(x_test).numpy()
+        decoded_imgs = autoencoder.decoder(latent_vectors).numpy()
 
-    def plot_autoencoder_reconstructions():
         decoded_imgs = np.squeeze(decoded_imgs)  # Removes last 1 dimension
         x_test = np.squeeze(x_test)  # Removes last 1 dimension
 
@@ -139,14 +164,29 @@ if __name__ == "__main__":
         RGB color; the keyword argument name must be a standard mpl colormap name.'''
         return plt.cm.get_cmap(name, n + 1)
 
-    def plot_latent_vector_clusters(n_vectors):
+    def plot_latent_vector_clusters(n_vectors, latent_vectors_before_training,
+                                    latent_vectors_after_autoencoder_training,
+                                    latent_vectors_after_classifier_training,
+                                    y_test):
+        assert latent_vectors_before_training.shape == latent_vectors_after_autoencoder_training.shape and latent_vectors_before_training.shape == latent_vectors_after_classifier_training.shape
+
         indices = np.random.choice(
-            encoded_imgs.shape[0], n_vectors, replace=False)
-        X_inputs = encoded_imgs[indices]
+            latent_vectors_before_training.shape[0], n_vectors, replace=False)
+
+        X_inputs_before_training = latent_vectors_before_training[indices]
+        X_inputs_after_autoencoder_training = latent_vectors_after_autoencoder_training[
+            indices]
+        X_inputs_after_classifier_training = latent_vectors_after_classifier_training[
+            indices]
         classes = y_test[indices]
 
         # Transforms X_inputs of shape (n_vectors, latent_vector_size) into (n_vectors, 2)
-        X_embedded = TSNE(n_components=2).fit_transform(X_inputs)
+        X_embedded_before_training = TSNE(
+            n_components=2).fit_transform(X_inputs_before_training)
+        X_embedded_autoencoder_training = TSNE(n_components=2).fit_transform(
+            X_inputs_after_autoencoder_training)
+        X_embedded_classifier_training = TSNE(n_components=2).fit_transform(
+            X_inputs_after_classifier_training)
 
         # One color for each class
         cmap = get_cmap(classes.shape[1])
@@ -155,7 +195,21 @@ if __name__ == "__main__":
             num = np.argmax(classes[i])
             colors.append(cmap(num))
 
-        plt.scatter(X_embedded[:, 0], X_embedded[:, 1], c=colors)
+        plt.figure(figsize=(16, 6))
+        plt.subplot(1, 3, 1)
+        plt.title("Before training")
+        plt.scatter(
+            X_embedded_before_training[:, 0], X_embedded_before_training[:, 1], c=colors)
+        plt.subplot(1, 3, 2)
+        plt.title("After autoencoder training")
+        plt.scatter(
+            X_embedded_autoencoder_training[:, 0], X_embedded_autoencoder_training[:, 1], c=colors)
+        plt.subplot(1, 3, 3)
+        plt.title("After classifier training")
+        plt.scatter(
+            X_embedded_classifier_training[:, 0], X_embedded_classifier_training[:, 1], c=colors)
         plt.show()
 
-    plot_latent_vector_clusters(250)
+    plot_autoencoder_reconstructions(x_test)
+    plot_latent_vector_clusters(250, latent_vectors_before_training,
+                                latent_vectors_after_autoencoder_training, latent_vectors_after_classifier_training, y_test)
