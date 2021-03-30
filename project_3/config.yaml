@@ -1,49 +1,46 @@
-# [MNIST, FASHION_MNIST, or two others]
-# TODO
+# Options: [MNIST, FASHION_MNIST, CIFAR10, CIFAR100]
 dataset: FASHION_MNIST
 
-learning_rate_auto_encoder: 0.01
-learning_rate_classifier: 0.01
+# See https://keras.io/api/losses/
+loss_function_auto_encoder: mean_squared_error
+loss_function_classifier: categorical_crossentropy
 
-# Options: [MSE, cross_entropy]
-loss_function_auto_encoder: cross_entropy
-loss_function_classifier: cross_entropy
+# See https://keras.io/api/optimizers/
+optimizer_autoencoder: adam
+optimizer_classifier: adam
 
-# Options: [SGD, Adam]
-optimizer: Adam
+# Set to null to use the optimizer's default learning rate
+learning_rate_auto_encoder: null
+learning_rate_classifier: null
 
-# TODO add NN architecture, neuron count, activation functions etc.
-architecture:
-  - neurons: 10
-    activation_funtion: relu
-
-  - neurons: 10
-    activation_funtion: sigmoid
-
-latent_vector_size: 4
+latent_vector_size: 8
 
 epochs_auto_encoder: 10
-epochs_classifier: 10
+epochs_classifier: 20
 
 batch_size: 64
 
-# How we should split the dataset. Unlabelled vs. labelled data ratio
-split_ratio: 0.8
+# How we should split the dataset. Labelled vs. unlabeled data ratio
+labeled_to_unlabeled_split_ratio: 0.05
 
-# How we divide D2 (labelled data) into training, validation and test sets
-# TODO look over these, since Keras load() functions already splits
-training_ratio: 0.7
+# How we divide D2 (labeled data) into training-test sets, where the training
+# set is further divided into training-validation sets
+train_to_test_ratio: 0.8
 validation_ratio: 0.2
-testing_ratio: 0.1
 
 # Whether or not to freeze the weights of the encoder module when using it in
 # the classifier.
 freeze: True
 
+# Whether or not to display plots over learning curves, tSNE plots of latent
+# vectors etc.
+visualize: True
+
+##### The below parameters are ignored if visualize is False
+
 # The number of autoencoder reconstructions (and corresponding input images)
 # to display at the end of the run.
 auto_encoder_reconstructions: 10
 
-# Whether or not tSNE plots of latent vectors will be shown at the 3 stages of
-# training.
-latent_vector_plot: True
+# How many latent vectors to visualize in the tSNE plot
+latent_vector_plot_count: 250

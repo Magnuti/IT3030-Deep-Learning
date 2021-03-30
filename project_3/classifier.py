@@ -21,8 +21,16 @@ class Classifier:
         self.num_classes = num_classes
 
         self.encoder = keras.models.clone_model(encoder)
-        self.encoder.trainable = False if args.freeze else True  # Works before compiling
-        self.encoder.compile()
+        if args.freeze:
+            # TODO
+            #     self.encoder.trainable = False
+            for layer in encoder.layers:
+                layer.trainable = False
+        # self.encoder.trainable = False if args.freeze else True  # Works before compiling
+        # self.encoder.compile(
+        #     optimizer=self.args.optimizer_autoencoder,
+        #     loss=self.args.loss_function_auto_encoder
+        # )
         self.encoder.set_weights(encoder.get_weights())
 
         self.save_path = save_path.joinpath("classifier")
@@ -35,9 +43,8 @@ class Classifier:
     def build_models(self):
         self.classifier_head = keras.Sequential(
             [
-                # TODO af param here?
-                # TODO take in neuron count param
-                layers.Dense(10, input_shape=(self.args.latent_vector_size, )),
+                layers.Dense(10, input_shape=(
+                    self.args.latent_vector_size, ), activation="relu"),
                 layers.Dense(self.num_classes, activation="softmax"),
             ],
             name="classifier_head"
@@ -48,13 +55,20 @@ class Classifier:
         self.classifier_model = self.ClassifierModel(
             self.encoder, self.classifier_head)
 
-    def train(self, x_train, y_train):
+    def train(self, x_train, y_train, x_val, y_val):
         # TODO map constants to keras stuff
-        self.classifier_model.compile(loss="categorical_crossentropy",
-                                      optimizer="adam", metrics=["accuracy"])
+        self.classifier_model.compile(loss=self.args.loss_function_classifier,
+                                      optimizer=self.args.optimizer_classifier,
+                                      metrics=["accuracy"])
 
-        history = self.classifier_model.fit(x_train, y_train, batch_size=self.args.batch_size,
-                                            epochs=self.args.epochs_classifier, validation_split=0.1)
+        if(self.args.learning_rate_classifier is not None):
+            keras.backend.set_value(
+                self.classifier_model.optimizer.learning_rate, self.args.learning_rate_classifier)
+
+        history = self.classifier_model.fit(x_train, y_train,
+                                            batch_size=self.args.batch_size,
+                                            epochs=self.args.epochs_classifier,
+                                            validation_data=(x_val, y_val))
 
         self.history_dict = history.history
 
@@ -63,6 +77,7 @@ class Classifier:
     def save_models(self):
         self.encoder.save(self.save_path.joinpath("encoder_in_classifier"))
         self.classifier_head.save(self.save_path.joinpath("classifier_head"))
+        self.classifier_model.save(self.save_path.joinpath("classifer"))
         np.save(self.save_path.joinpath(
             "classifier_history_dict.npy"), self.history_dict)
 
@@ -71,13 +86,10 @@ class Classifier:
             self.save_path.joinpath("encoder_in_classifier"))
         self.classifier_head = keras.models.load_model(
             self.save_path.joinpath("classifier_head"))
+        self.classifier_model = keras.models.load_model(
+            self.save_path.joinpath("classifer"))
         self.history_dict = np.load(self.save_path.joinpath(
             "classifier_history_dict.npy"), allow_pickle=True).item()
 
-        self.classifier_model = self.ClassifierModel(
-            self.encoder, self.classifier_head)
-
-    # def evaluate(self, x_test, y_test):
-    #     score = self.model.evaluate(x_test, y_test, verbose=0)
-    #     print("Test loss:", score[0])
-    #     print("Test accuracy:", score[1])
+    def evaluate(self, x_test, y_test, verbose=1):
+        return self.classifier_model.evaluate(x_test, y_test, verbose=verbose)

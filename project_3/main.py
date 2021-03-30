@@ -1,7 +1,5 @@
 from tensorflow import keras
 import numpy as np
-import matplotlib.pyplot as plt
-from sklearn.manifold import TSNE
 import pathlib
 
 from config_parser import Arguments
@@ -9,6 +7,7 @@ from constants import Dataset
 from autoencoder import AutoEncoder
 from classifier import Classifier
 from supervised_classifier import SupervisedClassifier
+from plotting import plot_loss_and_accuracy, plot_latent_vector_clusters, plot_autoencoder_reconstructions
 
 if __name__ == "__main__":
     arguments = Arguments()
@@ -17,223 +16,164 @@ if __name__ == "__main__":
     save_path = pathlib.Path("saves")
     save_path.mkdir(exist_ok=True)
 
-    image_path = pathlib.Path("images")
-    image_path.mkdir(exist_ok=True)
+    def load_data(dataset):
+        if dataset == Dataset.MNIST:
+            return keras.datasets.mnist.load_data()
+        elif dataset == Dataset.FASHION_MNIST:
+            return keras.datasets.fashion_mnist.load_data()
+        elif dataset == Dataset.CIFAR10:
+            return keras.datasets.cifar10.load_data()
+        elif dataset == Dataset.CIFAR100:
+            return keras.datasets.cifar100.load_data()
+        else:
+            raise NotImplementedError()
+
+    def pre_process_image_data(x):
+        # Scale images to the [0, 1] range
+        return x.astype("float32") / 255
+
+    def split_dataset(x, y, split_ratio):
+        assert x.shape[0] == y.shape[0]
+
+        split_index = int(x.shape[0] * split_ratio)
+        x_0 = x[:split_index]
+        y_0 = y[:split_index]
+        x_1 = x[split_index:]
+        y_1 = y[split_index:]
+
+        return (x_0, y_0), (x_1, y_1)
+
+    def split_dataset_x_only(x, split_ratio):
+        split_index = int(x.shape[0] * split_ratio)
+        return x[:split_index], x[split_index:]
+
+    (x_train, y_train), (x_test, y_test) = load_data(arguments.dataset)
+
+    x = np.concatenate([x_train, x_test])
+    y = np.concatenate([y_train, y_test])
+
+    if arguments.dataset == Dataset.MNIST or arguments.dataset == Dataset.FASHION_MNIST:
+        # Make sure images go from shape (28, 28) to (28, 28, 1)
+        x = np.expand_dims(x, -1)
 
     if arguments.dataset == Dataset.MNIST:
-        # From https://keras.io/examples/vision/mnist_convnet/
-
-        # the data, split between train and test sets
-        (x_train, y_train), (x_test, y_test) = keras.datasets.mnist.load_data()
-
-        # Scale images to the [0, 1] range
-        x_train = x_train.astype("float32") / 255
-        x_test = x_test.astype("float32") / 255
-        # Make sure images have shape (28, 28, 1)
-        x_train = np.expand_dims(x_train, -1)
-        x_test = np.expand_dims(x_test, -1)
-
         num_classes = 10
-        # convert class vectors to binary class matrices
-        y_train = keras.utils.to_categorical(y_train, num_classes)
-        y_test = keras.utils.to_categorical(y_test, num_classes)
     elif arguments.dataset == Dataset.FASHION_MNIST:
-        # From https://keras.io/examples/vision/mnist_convnet/
-
-        # the data, split between train and test sets
-        (x_train, y_train), (x_test,
-                             y_test) = keras.datasets.fashion_mnist.load_data()
-
-        # Scale images to the [0, 1] range
-        x_train = x_train.astype("float32") / 255
-        x_test = x_test.astype("float32") / 255
-        # Make sure images have shape (28, 28, 1)
-        x_train = np.expand_dims(x_train, -1)
-        x_test = np.expand_dims(x_test, -1)
-
         num_classes = 10
-        # convert class vectors to binary class matrices
-        y_train = keras.utils.to_categorical(y_train, num_classes)
-        y_test = keras.utils.to_categorical(y_test, num_classes)
+    elif arguments.dataset == Dataset.CIFAR10:
+        num_classes = 10
+    elif arguments.dataset == Dataset.CIFAR100:
+        num_classes = 100
     else:
         raise NotImplementedError()
 
-    print("x_train shape:", x_train.shape)
-    print("y_train shape:", y_train.shape)
-    print("x_test shape:", x_test.shape)
-    print("y_test shape:", y_test.shape)
+    x = pre_process_image_data(x)
 
-    # Split data into labelled and unlabelled
-    train_split_index = int(x_train.shape[0] * arguments.split_ratio)
-    x_train_labelled = x_train[:train_split_index]
-    x_train_unlabelled = x_train[train_split_index:]
+    # One hot encode targets
+    y = keras.utils.to_categorical(y, num_classes)
 
-    y_train_labelled = y_train[:train_split_index]
-    y_train_unlabelled = y_train[train_split_index:]
+    input_shape = x.shape[1:]
 
-    test_split_index = int(x_test.shape[0] * arguments.split_ratio)
-    x_test_labelled = x_test[:test_split_index]
-    x_test_unlabelled = x_test[test_split_index:]
+    print("x shape:", x.shape)
+    print("y shape:", y.shape)
+    print("Input shape:", input_shape)
 
-    y_test_labelled = y_train[:test_split_index]
-    y_test_unlabelled = y_train[test_split_index:]
+    (x_labeled, y_labeled), (x_unlabeled, _) = split_dataset(
+        x, y, arguments.labeled_to_unlabeled_split_ratio)
 
-    # print(x_train_labelled.shape)
-    # print(x_train_unlabelled.shape)
-    # print(y_train_labelled.shape)
-    # print(y_train_unlabelled.shape)
+    print("Labeled:", x_labeled.shape[0],
+          "to unlabeled:", x_unlabeled.shape[0])
 
-    # print(x_test_labelled.shape)
-    # print(x_test_unlabelled.shape)
-    # print(y_test_labelled.shape)
-    # print(y_test_unlabelled.shape)
+    (x_train_labeled, y_train_labeled), (x_test_labeled, y_test_labeled) = split_dataset(
+        x_labeled, y_labeled, arguments.train_to_test_ratio)
+    (x_train_labeled, y_train_labeled), (x_val_labeled, y_val_labeled) = split_dataset(
+        x_train_labeled, y_train_labeled, 1.0 - arguments.validation_ratio)
 
-    # TODO load/save depening on if the folder exists
-    autoencoder = AutoEncoder(arguments, save_path)
+    (x_train_unlabeled, x_test_unlabeled) = split_dataset_x_only(
+        x_unlabeled, arguments.train_to_test_ratio)
+    (x_train_unlabeled, x_val_unlabeled) = split_dataset_x_only(
+        x_train_unlabeled, arguments.train_to_test_ratio)
 
-    latent_vectors_before_training = autoencoder.encoder(x_test).numpy()
+    print("Labeled data:")
+    print("\tTraining data:", x_train_labeled.shape, y_train_labeled.shape)
+    print("\tValidation data:", x_val_labeled.shape, y_val_labeled.shape)
+    print("\tTesting data:", x_test_labeled.shape, y_test_labeled.shape)
 
-    # autoencoder_history_dict = autoencoder.train(
-    #     x_train_unlabelled, x_test_unlabelled)
-    # autoencoder.save_models()
-    autoencoder.load_models()
-    autoencoder_history_dict = autoencoder.history_dict
+    print("Unlabeled data:")
+    print("\tTraining data:", x_train_unlabeled.shape)
+    print("\tValidation data:", x_val_unlabeled.shape)
+    print("\tTesting data:", x_test_unlabeled.shape)
+
+    autoencoder = AutoEncoder(arguments, save_path, input_shape)
+
+    latent_vectors_before_training = autoencoder.encoder(
+        x_test_labeled).numpy()
+
+    # May fix these later, good for now
+    load_autoencoder = False
+    load_classifier = False
+    load_supervised_classifer = False
+
+    if not load_autoencoder:
+        autoencoder_history_dict = autoencoder.train(
+            x_train_unlabeled, x_val_unlabeled)
+        autoencoder.save_models()
+    else:
+        autoencoder.load_models()
+        autoencoder_history_dict = autoencoder.history_dict
 
     latent_vectors_after_autoencoder_training = autoencoder.encoder(
-        x_test).numpy()
+        x_test_labeled).numpy()
 
     classifer = Classifier(arguments, num_classes,
                            autoencoder.encoder, save_path)
-    # classifier_history_dict = classifer.train(
-    #     x_train_labelled, y_train_labelled)
-    # classifer.save_models()
-    classifer.load_models()
-    classifier_history_dict = classifer.history_dict
+    if not load_classifier:
+        classifier_history_dict = classifer.train(
+            x_train_labeled, y_train_labeled, x_val_labeled, y_val_labeled)
+        classifer.save_models()
+    else:
+        classifer.load_models()
+        classifier_history_dict = classifer.history_dict
 
     supervised_classifier = SupervisedClassifier(
-        arguments, num_classes, save_path)
-    # supervised_classifier_history_dict = supervised_classifier.train(
-    #     x_train_labelled, y_train_labelled)
-    # supervised_classifier.save_models()
-    supervised_classifier.load_models()
-    supervised_classifier_history_dict = supervised_classifier.history_dict
+        arguments, num_classes, save_path, input_shape)
+
+    if not load_supervised_classifer:
+        supervised_classifier_history_dict = supervised_classifier.train(
+            x_train_labeled, y_train_labeled, x_val_labeled, y_val_labeled)
+        supervised_classifier.save_models()
+    else:
+        supervised_classifier.load_models()
+        supervised_classifier_history_dict = supervised_classifier.history_dict
 
     latent_vectors_after_classifier_training = classifer.encoder(
-        x_test).numpy()
+        x_test_labeled).numpy()
 
-    def plot_loss_and_accuracy():
-        # TODO separate loss and accuracy according to spec
-        # Plot accuracy and loss
-        plt.figure(figsize=(12, 6))
-        plt.subplot(1, 2, 1)
-        plt.title('Autoencoder loss')
-        plt.plot(autoencoder_history_dict['loss'])
-        plt.plot(autoencoder_history_dict['val_loss'])
-        plt.ylabel('Loss')
-        plt.xlabel('Epoch')
-        plt.legend(['Train', 'Validaton'])
+    # Evaluation on test set
+    autoencoder_score = autoencoder.evaluate(x_test_unlabeled)
+    classifier_score = classifer.evaluate(x_test_labeled, y_test_labeled)
+    supervised_classifier_score = supervised_classifier.evaluate(
+        x_test_labeled, y_test_labeled)
+    print("Autoencoder test loss:", autoencoder_score)
+    print("Semi-supervised classifier test [loss, accuracy]", classifier_score)
+    print(
+        "Supervised classifier test [loss, accuracy]", supervised_classifier_score)
 
-        plt.subplot(1, 2, 2)
-        plt.title('Comparative Classifier Accuracy')
-        plt.plot(classifier_history_dict['accuracy'])
-        plt.plot(classifier_history_dict['val_accuracy'])
-        plt.plot(
-            supervised_classifier_history_dict['accuracy'])
-        plt.plot(
-            supervised_classifier_history_dict['val_accuracy'])
-        plt.ylabel('Accuracy')
-        plt.xlabel('Epoch')
-        plt.legend(['Semi training accuracy', 'Semi val. accuracy',
-                    "Supervised training accuracy", "Supervised val. accuracy"])
+    if arguments.visualize:
+        plot_loss_and_accuracy(autoencoder_history_dict,
+                               classifier_history_dict, supervised_classifier_history_dict)
 
-        plt.savefig(image_path.joinpath("loss_and_accuracy.png"))
-        plt.show()
+        latent_vectors = autoencoder.encoder(x_test_labeled).numpy()
+        reconstructed_images = autoencoder.decoder(latent_vectors).numpy()
 
-    def plot_autoencoder_reconstructions(x_test):
-        # Display images (from https://www.tensorflow.org/tutorials/generative/autoencoder)
-        latent_vectors = autoencoder.encoder(x_test).numpy()
-        decoded_imgs = autoencoder.decoder(latent_vectors).numpy()
+        # Removes last 1 dimension
+        reconstructed_images = np.squeeze(reconstructed_images)
+        x_test_labeled = np.squeeze(x_test_labeled)
 
-        decoded_imgs = np.squeeze(decoded_imgs)  # Removes last 1 dimension
-        x_test = np.squeeze(x_test)  # Removes last 1 dimension
+        plot_autoencoder_reconstructions(
+            x_test_labeled, reconstructed_images)
 
-        n = 10
-        plt.figure(figsize=(20, 4))
-        for i in range(n):
-            # Display original
-            ax = plt.subplot(2, n, i + 1)
-            plt.imshow(x_test[i])
-            plt.title("Original")
-            plt.gray()
-            ax.get_xaxis().set_visible(False)
-            ax.get_yaxis().set_visible(False)
-
-            # Display reconstruction
-            ax = plt.subplot(2, n, i + 1 + n)
-            plt.imshow(decoded_imgs[i])
-            plt.title("Reconstructed")
-            plt.gray()
-            ax.get_xaxis().set_visible(False)
-            ax.get_yaxis().set_visible(False)
-
-        plt.savefig(image_path.joinpath("autoencoder_reconstructions.png"))
-        plt.show()
-
-    def get_cmap(n, name='hsv'):
-        # https://stackoverflow.com/questions/14720331/how-to-generate-random-colors-in-matplotlib
-        '''Returns a function that maps each index in 0, 1, ..., n-1 to a distinct 
-        RGB color; the keyword argument name must be a standard mpl colormap name.'''
-        return plt.cm.get_cmap(name, n + 1)
-
-    def plot_latent_vector_clusters(n_vectors, latent_vectors_before_training,
+        plot_latent_vector_clusters(250, latent_vectors_before_training,
                                     latent_vectors_after_autoencoder_training,
                                     latent_vectors_after_classifier_training,
-                                    y_test):
-        assert latent_vectors_before_training.shape == latent_vectors_after_autoencoder_training.shape and latent_vectors_before_training.shape == latent_vectors_after_classifier_training.shape
-
-        indices = np.random.choice(
-            latent_vectors_before_training.shape[0], n_vectors, replace=False)
-
-        X_inputs_before_training = latent_vectors_before_training[indices]
-        X_inputs_after_autoencoder_training = latent_vectors_after_autoencoder_training[
-            indices]
-        X_inputs_after_classifier_training = latent_vectors_after_classifier_training[
-            indices]
-        classes = y_test[indices]
-
-        # Transforms X_inputs of shape (n_vectors, latent_vector_size) into (n_vectors, 2)
-        X_embedded_before_training = TSNE(
-            n_components=2).fit_transform(X_inputs_before_training)
-        X_embedded_autoencoder_training = TSNE(n_components=2).fit_transform(
-            X_inputs_after_autoencoder_training)
-        X_embedded_classifier_training = TSNE(n_components=2).fit_transform(
-            X_inputs_after_classifier_training)
-
-        # One color for each class
-        cmap = get_cmap(classes.shape[1])
-        colors = []
-        for i in range(classes.shape[0]):
-            num = np.argmax(classes[i])
-            colors.append(cmap(num))
-
-        plt.figure(figsize=(16, 6))
-        plt.subplot(1, 3, 1)
-        plt.title("Before training")
-        plt.scatter(
-            X_embedded_before_training[:, 0], X_embedded_before_training[:, 1], c=colors)
-        plt.subplot(1, 3, 2)
-        plt.title("After autoencoder training")
-        plt.scatter(
-            X_embedded_autoencoder_training[:, 0], X_embedded_autoencoder_training[:, 1], c=colors)
-        plt.subplot(1, 3, 3)
-        plt.title("After classifier training")
-        plt.scatter(
-            X_embedded_classifier_training[:, 0], X_embedded_classifier_training[:, 1], c=colors)
-
-        plt.savefig(image_path.joinpath("latent_vector_clusters.png"))
-        plt.show()
-
-    plot_loss_and_accuracy()
-    plot_autoencoder_reconstructions(x_test)
-    plot_latent_vector_clusters(250, latent_vectors_before_training,
-                                latent_vectors_after_autoencoder_training, latent_vectors_after_classifier_training, y_test)
+                                    y_test_labeled)

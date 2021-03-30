@@ -19,29 +19,23 @@ class AutoEncoder:
             decoded = self.decoder(encoded)
             return decoded
 
-    def __init__(self, args, save_path):
+    def __init__(self, args, save_path, input_shape):
         super().__init__()
         self.args = args
         self.save_path = save_path.joinpath("autoencoder")
         self.save_path.mkdir(exist_ok=True)
+        self.input_shape = input_shape
 
         self.history_dict = dict()
 
         self.build_models()
 
     def build_models(self):
-        if self.args.dataset == Dataset.MNIST:
-            self.encoder_input_shape = (28, 28, 1)
-        elif self.args.dataset == Dataset.FASHION_MNIST:
-            self.encoder_input_shape = (28, 28, 1)
-        else:
-            raise NotImplementedError()
-
-        print("Encoder input shape:", self.encoder_input_shape)
+        print("Encoder input shape:", self.input_shape)
         self.encoder = keras.Sequential(
             [
                 # keras.Input(shape=self.input_shape),
-                layers.Conv2D(32, input_shape=self.encoder_input_shape,
+                layers.Conv2D(32, input_shape=self.input_shape,
                               kernel_size=3, padding="same", activation="relu",),
                 layers.MaxPooling2D(pool_size=2),
                 layers.Conv2D(64, kernel_size=3, padding="same",
@@ -59,19 +53,25 @@ class AutoEncoder:
         decoder_input_shape = (self.args.latent_vector_size, )
         print("Decoder input size:", decoder_input_shape)
 
+        # Makes sure the output image is the same dimension as the input image
+        # Hotfix for handling 28x28 and 32x32 images
+        # Multiply and divide by 4 since the convolutions increase/decrease the original image by a factor of 4
+        neurons_in_first_decoder_layers = self.input_shape[0] * \
+            self.input_shape[1] * 4
+        reshape_number = self.input_shape[0] // 4
         self.decoder = keras.Sequential(
             [
                 # layers.Input(shape=(4, 1)),
-                layers.Dense(3136, input_shape=decoder_input_shape),  # TODO
-                layers.Reshape((7, 7, 64)),
+                layers.Dense(neurons_in_first_decoder_layers,
+                             input_shape=decoder_input_shape),
+                layers.Reshape(
+                    (reshape_number, reshape_number, self.args.batch_size)),
                 layers.UpSampling2D(size=2),
                 layers.Conv2DTranspose(
                     32, 3, activation="relu", padding="same"),
                 layers.UpSampling2D(size=2),
                 layers.Conv2DTranspose(
-                    1, 3, activation="relu", padding="same"),
-                # layers.Flatten(),
-                # layers.Dense(self.input_shape[0] * self.input_shape[1])  # TODO
+                    self.input_shape[-1], 3, activation="relu", padding="same"),
             ],
             name="decoder"
         )
@@ -81,17 +81,19 @@ class AutoEncoder:
         self.autoencoder_model = self.AutoEncoderModel(
             self.encoder, self.decoder)
 
-    def train(self, x_train, x_test):
-        # TODO map constants to keras stuff
-        # self.compile(loss="categorical_crossentropy",
-        #              optimizer="adam", metrics=["accuracy"])
-        # TODO fix loss param
-        self.autoencoder_model.compile(optimizer='adam', metrics=[
-                                       'accuracy'], loss=losses.MeanSquaredError())
+    def train(self, x_train, x_val):
+        self.autoencoder_model.compile(
+            optimizer=self.args.optimizer_autoencoder,
+            loss=self.args.loss_function_auto_encoder)
 
-        # TODO look over validation split
-        history = self.autoencoder_model.fit(x_train, x_train, batch_size=self.args.batch_size,
-                                             epochs=self.args.epochs_classifier, validation_split=0.1, validation_data=(x_test, x_test))
+        if(self.args.learning_rate_auto_encoder is not None):
+            keras.backend.set_value(
+                self.autoencoder_model.optimizer.learning_rate, self.args.learning_rate_auto_encoder)
+
+        history = self.autoencoder_model.fit(
+            x_train, x_train, batch_size=self.args.batch_size,
+            epochs=self.args.epochs_auto_encoder,
+            validation_data=(x_val, x_val))
         self.history_dict = history.history
 
         return self.history_dict
@@ -99,6 +101,7 @@ class AutoEncoder:
     def save_models(self):
         self.encoder.save(self.save_path.joinpath("encoder"))
         self.decoder.save(self.save_path.joinpath("decoder"))
+        self.autoencoder_model.save(self.save_path.joinpath("autoencoder"))
         np.save(self.save_path.joinpath(
             "autoencoder_history_dict.npy"), self.history_dict)
 
@@ -107,13 +110,10 @@ class AutoEncoder:
             self.save_path.joinpath("encoder"))
         self.decoder = keras.models.load_model(
             self.save_path.joinpath("decoder"))
+        self.autoencoder_model = keras.models.load_model(
+            self.save_path.joinpath("autoencoder"))
         self.history_dict = np.load(self.save_path.joinpath(
             "autoencoder_history_dict.npy"), allow_pickle=True).item()
 
-        self.autoencoder_model = self.AutoEncoderModel(
-            self.encoder, self.decoder)
-
-    # def evaluate(self, x_test, y_test):
-    #     score = self.model.evaluate(x_test, y_test, verbose=0)
-    #     print("Test loss:", score[0])
-    #     print("Test accuracy:", score[1])
+    def evaluate(self, x_test, verbose=1):
+        return self.autoencoder_model.evaluate(x_test, x_test, verbose=verbose)
