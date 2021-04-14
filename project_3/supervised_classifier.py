@@ -36,18 +36,21 @@ class SupervisedClassifier:
 
         self.model.summary()
 
+        optimizer = keras.optimizers.get(
+            self.args.optimizer_supervised_classifier)
+        if self.args.learning_rate_supervised_classifier is not None:
+            optimizer.learning_rate.assign(
+                self.args.learning_rate_supervised_classifier)
+
+        self.model.compile(
+            optimizer=optimizer,
+            loss=self.args.loss_function_supervised_classifier,
+            metrics=["accuracy"])
+
     def train(self, x_train, y_train, x_val, y_val):
-        self.model.compile(loss=self.args.loss_function_classifier,
-                           optimizer=self.args.optimizer_classifier,
-                           metrics=["accuracy"])
-
-        if(self.args.learning_rate_classifier is not None):
-            keras.backend.set_value(
-                self.model.optimizer.learning_rate, self.args.learning_rate_classifier)
-
         history = self.model.fit(x_train, y_train,
                                  batch_size=self.args.batch_size,
-                                 epochs=self.args.epochs_classifier,
+                                 epochs=self.args.epochs_supervised_classifier,
                                  validation_data=(x_val, y_val))
 
         self.history_dict = history.history

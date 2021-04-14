@@ -81,15 +81,16 @@ class AutoEncoder:
         self.autoencoder_model = self.AutoEncoderModel(
             self.encoder, self.decoder)
 
-    def train(self, x_train, x_val):
+        optimizer = keras.optimizers.get(self.args.optimizer_autoencoder)
+        if self.args.learning_rate_auto_encoder is not None:
+            optimizer.learning_rate.assign(
+                self.args.learning_rate_auto_encoder)
+
         self.autoencoder_model.compile(
-            optimizer=self.args.optimizer_autoencoder,
+            optimizer=optimizer,
             loss=self.args.loss_function_auto_encoder)
 
-        if(self.args.learning_rate_auto_encoder is not None):
-            keras.backend.set_value(
-                self.autoencoder_model.optimizer.learning_rate, self.args.learning_rate_auto_encoder)
-
+    def train(self, x_train, x_val):
         history = self.autoencoder_model.fit(
             x_train, x_train, batch_size=self.args.batch_size,
             epochs=self.args.epochs_auto_encoder,

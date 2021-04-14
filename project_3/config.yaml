@@ -4,19 +4,23 @@ dataset: FASHION_MNIST
 # See https://keras.io/api/losses/
 loss_function_auto_encoder: mean_squared_error
 loss_function_classifier: categorical_crossentropy
+loss_function_supervised_classifier: categorical_crossentropy
 
 # See https://keras.io/api/optimizers/
 optimizer_autoencoder: adam
 optimizer_classifier: adam
+optimizer_supervised_classifier: adam
 
 # Set to null to use the optimizer's default learning rate
 learning_rate_auto_encoder: null
-learning_rate_classifier: null
+learning_rate_classifier: 0.01
+learning_rate_supervised_classifier: null
 
 latent_vector_size: 8
 
 epochs_auto_encoder: 10
 epochs_classifier: 20
+epochs_supervised_classifier: 20
 
 batch_size: 64
 
@@ -33,7 +37,7 @@ validation_ratio: 0.2
 
 # Whether or not to freeze the weights of the encoder module when using it in
 # the classifier.
-freeze: False
+freeze: True
 
 # Whether or not to display plots over learning curves, tSNE plots of latent
 # vectors etc.

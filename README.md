@@ -10,6 +10,4 @@ In `./project_2` we implemented a recurrent neural network (RNN) from scratch wi
 
 ## Project 3 - Semi-supervised learning
 
-In `./project_3` we implemented semi-supervised learning with Keras over the [MNIST](http://yann.lecun.com/exdb/mnist/) and [Fasion MNIST](https://github.com/zalandoresearch/fashion-mnist) dataset.
-
-<!-- TODO add the two other datasets -->
+In `./project_3` we implemented semi-supervised learning with Keras over the [MNIST](http://yann.lecun.com/exdb/mnist/), [Fasion MNIST](https://github.com/zalandoresearch/fashion-mnist), [CIFAR10](https://keras.io/api/datasets/cifar10/) and the [CIFAR100](https://keras.io/api/datasets/cifar100/) dataset.

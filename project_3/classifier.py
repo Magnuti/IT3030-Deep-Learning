@@ -48,16 +48,17 @@ class Classifier:
         self.classifier_model = self.ClassifierModel(
             self.encoder, self.classifier_head)
 
+        optimizer = keras.optimizers.get(self.args.optimizer_classifier)
+        if self.args.learning_rate_classifier is not None:
+            optimizer.learning_rate.assign(
+                self.args.learning_rate_classifier)
+
+        self.classifier_model.compile(
+            optimizer=optimizer,
+            loss=self.args.loss_function_classifier,
+            metrics=["accuracy"])
+
     def train(self, x_train, y_train, x_val, y_val):
-        # TODO map constants to keras stuff
-        self.classifier_model.compile(loss=self.args.loss_function_classifier,
-                                      optimizer=self.args.optimizer_classifier,
-                                      metrics=["accuracy"])
-
-        if(self.args.learning_rate_classifier is not None):
-            keras.backend.set_value(
-                self.classifier_model.optimizer.learning_rate, self.args.learning_rate_classifier)
-
         history = self.classifier_model.fit(x_train, y_train,
                                             batch_size=self.args.batch_size,
                                             epochs=self.args.epochs_classifier,

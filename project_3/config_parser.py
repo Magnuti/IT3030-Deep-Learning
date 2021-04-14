@@ -9,15 +9,25 @@ class Arguments:
             config_data = yaml.safe_load(f)
 
         self.dataset = Dataset(config_data["dataset"])
+
         self.loss_function_auto_encoder = config_data["loss_function_auto_encoder"]
         self.loss_function_classifier = config_data["loss_function_classifier"]
+        self.loss_function_supervised_classifier = config_data["loss_function_supervised_classifier"]
+
         self.optimizer_autoencoder = config_data["optimizer_autoencoder"]
         self.optimizer_classifier = config_data["optimizer_classifier"]
+        self.optimizer_supervised_classifier = config_data["optimizer_supervised_classifier"]
+
         self.learning_rate_auto_encoder = config_data["learning_rate_auto_encoder"]
         self.learning_rate_classifier = config_data["learning_rate_classifier"]
+        self.learning_rate_supervised_classifier = config_data["learning_rate_supervised_classifier"]
+
         self.latent_vector_size = config_data["latent_vector_size"]
+
         self.epochs_auto_encoder = config_data["epochs_auto_encoder"]
         self.epochs_classifier = config_data["epochs_classifier"]
+        self.epochs_supervised_classifier = config_data["epochs_supervised_classifier"]
+
         self.batch_size = config_data["batch_size"]
         self.dataset_ratio = config_data["dataset_ratio"]
         self.labeled_to_unlabeled_split_ratio = config_data["labeled_to_unlabeled_split_ratio"]
