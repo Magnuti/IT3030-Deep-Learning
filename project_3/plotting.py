@@ -39,8 +39,11 @@ def plot_loss_and_accuracy(autoencoder_history_dict, classifier_history_dict, su
 
 def plot_autoencoder_reconstructions(x_test, reconstructed_images):
     # Display images (from https://www.tensorflow.org/tutorials/generative/autoencoder)
-    n = 10
+
+    assert len(x_test) == len(reconstructed_images)
+
     plt.figure(figsize=(20, 4))
+    n = len(x_test)
     for i in range(n):
         # Display original
         ax = plt.subplot(2, n, i + 1)

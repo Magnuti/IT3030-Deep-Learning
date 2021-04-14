@@ -177,7 +177,8 @@ if __name__ == "__main__":
         x_test_labeled = np.squeeze(x_test_labeled)
 
         plot_autoencoder_reconstructions(
-            x_test_labeled, reconstructed_images)
+            x_test_labeled[:arguments.auto_encoder_reconstructions],
+            reconstructed_images[:arguments.auto_encoder_reconstructions])
 
         plot_latent_vector_clusters(arguments.latent_vector_plot_count,
                                     latent_vectors_before_training,
