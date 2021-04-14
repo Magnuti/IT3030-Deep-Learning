@@ -16,22 +16,15 @@ class Classifier:
             classified = self.classifier_head(encoded)
             return classified
 
-    def __init__(self, args, num_classes, encoder, save_path):
+    def __init__(self, args, num_classes, encoder_to_copy, save_path):
         self.args = args
         self.num_classes = num_classes
 
-        self.encoder = keras.models.clone_model(encoder)
+        self.encoder = keras.models.clone_model(encoder_to_copy)
         if args.freeze:
-            # TODO
-            #     self.encoder.trainable = False
-            for layer in encoder.layers:
+            for layer in self.encoder.layers:
                 layer.trainable = False
-        # self.encoder.trainable = False if args.freeze else True  # Works before compiling
-        # self.encoder.compile(
-        #     optimizer=self.args.optimizer_autoencoder,
-        #     loss=self.args.loss_function_auto_encoder
-        # )
-        self.encoder.set_weights(encoder.get_weights())
+        self.encoder.set_weights(encoder_to_copy.get_weights())
 
         self.save_path = save_path.joinpath("classifier")
         self.save_path.mkdir(exist_ok=True)
