@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
 from sklearn.manifold import TSNE
 import pathlib
 import numpy as np
@@ -115,5 +116,7 @@ def plot_latent_vector_clusters(n_vectors, latent_vectors_before_training,
     plt.scatter(
         X_embedded_classifier_training[:, 0], X_embedded_classifier_training[:, 1], c=colors)
 
+    plt.legend(handles=[mpatches.Patch(color=cmap(i), label=i)
+                        for i in range(10)], bbox_to_anchor=(1.25, 1), loc='upper right')
     plt.savefig(image_path.joinpath("latent_vector_clusters.png"))
     plt.show()
