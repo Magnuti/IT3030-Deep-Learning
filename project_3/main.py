@@ -179,7 +179,8 @@ if __name__ == "__main__":
         plot_autoencoder_reconstructions(
             x_test_labeled, reconstructed_images)
 
-        plot_latent_vector_clusters(250, latent_vectors_before_training,
+        plot_latent_vector_clusters(arguments.latent_vector_plot_count,
+                                    latent_vectors_before_training,
                                     latent_vectors_after_autoencoder_training,
                                     latent_vectors_after_classifier_training,
                                     y_test_labeled)
