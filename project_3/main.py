@@ -52,6 +52,12 @@ if __name__ == "__main__":
     x = np.concatenate([x_train, x_test])
     y = np.concatenate([y_train, y_test])
 
+    assert len(x) == len(y)
+
+    # Use only some part of the dataset
+    x = x[:int(len(x) * arguments.dataset_ratio)]
+    y = y[:int(len(y) * arguments.dataset_ratio)]
+
     if arguments.dataset == Dataset.MNIST or arguments.dataset == Dataset.FASHION_MNIST:
         # Make sure images go from shape (28, 28) to (28, 28, 1)
         x = np.expand_dims(x, -1)

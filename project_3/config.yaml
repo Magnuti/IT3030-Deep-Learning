@@ -20,8 +20,11 @@ epochs_classifier: 20
 
 batch_size: 64
 
+# Specifies how much of the dataset to use. Set to 1.0 to use the whole dataset
+dataset_ratio: 0.2
+
 # How we should split the dataset. Labelled vs. unlabeled data ratio
-labeled_to_unlabeled_split_ratio: 0.05
+labeled_to_unlabeled_split_ratio: 0.1
 
 # How we divide D2 (labeled data) into training-test sets, where the training
 # set is further divided into training-validation sets
@@ -30,7 +33,7 @@ validation_ratio: 0.2
 
 # Whether or not to freeze the weights of the encoder module when using it in
 # the classifier.
-freeze: True
+freeze: False
 
 # Whether or not to display plots over learning curves, tSNE plots of latent
 # vectors etc.

@@ -19,6 +19,7 @@ class Arguments:
         self.epochs_auto_encoder = config_data["epochs_auto_encoder"]
         self.epochs_classifier = config_data["epochs_classifier"]
         self.batch_size = config_data["batch_size"]
+        self.dataset_ratio = config_data["dataset_ratio"]
         self.labeled_to_unlabeled_split_ratio = config_data["labeled_to_unlabeled_split_ratio"]
         self.train_to_test_ratio = config_data["train_to_test_ratio"]
         self.validation_ratio = config_data["validation_ratio"]
